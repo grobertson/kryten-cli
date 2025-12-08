@@ -152,8 +152,12 @@ class KrytenCLI:
         if dm_match:
             return ("dm", dm_match.group(1))
         
-        # Default: assume it's a direct URL or ID
-        return ("cu", url)  # Custom URL
+        # CyTube Custom Media JSON manifest (must end with .json)
+        if url.lower().endswith('.json') or '.json?' in url.lower():
+            return ("cm", url)
+        
+        # Default: custom URL (for direct video files, custom embeds, etc.)
+        return ("cu", url)
     
     # ========================================================================
     # Chat Commands
