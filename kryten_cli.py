@@ -324,13 +324,11 @@ class KrytenCLI:
         bucket_name = f"cytube_{self.channel}_playlist"
         
         try:
-            playlist_data = await self.client.kv_get(bucket_name, "items")
+            playlist = await self.client.kv_get(bucket_name, "items", default=None, parse_json=True)
             
-            if not playlist_data:
-                print("Playlist is empty or not available.")
+            if playlist is None:
+                print(f"Playlist data not available. Is Kryten-Robot running for channel '{self.channel}'?")
                 return
-            
-            playlist = json.loads(playlist_data)
             
             if not playlist:
                 print("Playlist is empty.")
@@ -363,13 +361,11 @@ class KrytenCLI:
         bucket_name = f"cytube_{self.channel}_userlist"
         
         try:
-            users_data = await self.client.kv_get(bucket_name, "users")
+            users = await self.client.kv_get(bucket_name, "users", default=None, parse_json=True)
             
-            if not users_data:
-                print("User list is empty or not available.")
+            if users is None:
+                print(f"User list not available. Is Kryten-Robot running for channel '{self.channel}'?")
                 return
-            
-            users = json.loads(users_data)
             
             if not users:
                 print("No users online.")
@@ -406,13 +402,11 @@ class KrytenCLI:
         bucket_name = f"cytube_{self.channel}_emotes"
         
         try:
-            emotes_data = await self.client.kv_get(bucket_name, "list")
+            emotes = await self.client.kv_get(bucket_name, "list", default=None, parse_json=True)
             
-            if not emotes_data:
-                print("Emote list is empty or not available.")
+            if emotes is None:
+                print(f"Emote list not available. Is Kryten-Robot running for channel '{self.channel}'?")
                 return
-            
-            emotes = json.loads(emotes_data)
             
             if not emotes:
                 print("No custom emotes configured.")
