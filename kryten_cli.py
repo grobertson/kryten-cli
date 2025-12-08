@@ -214,11 +214,44 @@ class KrytenCLI:
         """Delete video from playlist.
         
         Args:
-            uid: Video UID or position number.
+            uid: Video UID or position number (1-based).
         """
         uid_int = int(uid)
-        await self.client.delete_media(self.channel, uid_int, domain=self.domain)
-        print(f"✓ Deleted media {uid} from {self.channel}")
+        
+        # If uid looks like a position (small number), fetch playlist and map position to UID
+        # CyTube UIDs are typically 4+ digits, positions are 1-based small numbers
+        if uid_int < 1000:  # Assume this is a position, not a UID
+            bucket_name = f"cytube_{self.channel.lower()}_playlist"
+            try:
+                playlist = await self.client.kv_get(bucket_name, "items", default=None, parse_json=True)
+                
+                if playlist is None or not isinstance(playlist, list):
+                    print(f"Cannot resolve position {uid_int}: playlist not available", file=sys.stderr)
+                    sys.exit(1)
+                
+                if uid_int < 1 or uid_int > len(playlist):
+                    print(f"Position {uid_int} out of range (playlist has {len(playlist)} items)", file=sys.stderr)
+                    sys.exit(1)
+                
+                # Get the actual UID from the playlist item
+                item = playlist[uid_int - 1]  # Convert 1-based to 0-based
+                actual_uid = item.get("uid")
+                
+                if actual_uid is None:
+                    print(f"Could not find UID for position {uid_int}", file=sys.stderr)
+                    sys.exit(1)
+                
+                await self.client.delete_media(self.channel, actual_uid, domain=self.domain)
+                title = item.get("media", {}).get("title", "Unknown")
+                print(f"✓ Deleted position {uid_int} (UID {actual_uid}): {title}")
+            
+            except Exception as e:
+                print(f"Error resolving position {uid_int}: {e}", file=sys.stderr)
+                sys.exit(1)
+        else:
+            # Large number, treat as direct UID
+            await self.client.delete_media(self.channel, uid_int, domain=self.domain)
+            print(f"✓ Deleted media UID {uid} from {self.channel}")
     
     async def cmd_playlist_move(self, uid: str, after: str) -> None:
         """Move video in playlist.
