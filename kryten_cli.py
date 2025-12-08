@@ -320,8 +320,8 @@ class KrytenCLI:
     # ========================================================================
     
     async def cmd_list_queue(self) -> None:
-        """Display current playlist."""
-        bucket_name = f"cytube_{self.channel}_playlist"
+        """Display current playlist queue."""
+        bucket_name = f"cytube_{self.channel.lower()}_playlist"
         
         try:
             playlist = await self.client.kv_get(bucket_name, "items", default=None, parse_json=True)
@@ -358,7 +358,7 @@ class KrytenCLI:
     
     async def cmd_list_users(self) -> None:
         """Display current user list."""
-        bucket_name = f"cytube_{self.channel}_userlist"
+        bucket_name = f"cytube_{self.channel.lower()}_userlist"
         
         try:
             users = await self.client.kv_get(bucket_name, "users", default=None, parse_json=True)
@@ -399,7 +399,7 @@ class KrytenCLI:
     
     async def cmd_list_emotes(self) -> None:
         """Display channel emotes."""
-        bucket_name = f"cytube_{self.channel}_emotes"
+        bucket_name = f"cytube_{self.channel.lower()}_emotes"
         
         try:
             emotes = await self.client.kv_get(bucket_name, "list", default=None, parse_json=True)
