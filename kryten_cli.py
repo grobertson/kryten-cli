@@ -314,6 +314,128 @@ class KrytenCLI:
         """Vote to skip current video."""
         await self.client.voteskip(self.channel, domain=self.domain)
         print(f"✓ Voted to skip in {self.channel}")
+    
+    # ========================================================================
+    # List Commands
+    # ========================================================================
+    
+    async def cmd_list_queue(self) -> None:
+        """Display current playlist."""
+        bucket_name = f"cytube_{self.channel}_playlist"
+        
+        try:
+            playlist_data = await self.client.kv_get(bucket_name, "items")
+            
+            if not playlist_data:
+                print("Playlist is empty or not available.")
+                return
+            
+            playlist = json.loads(playlist_data)
+            
+            if not playlist:
+                print("Playlist is empty.")
+                return
+            
+            print(f"\n{self.channel} Playlist ({len(playlist)} items):")
+            print("=" * 80)
+            
+            for i, item in enumerate(playlist, 1):
+                media = item.get("media", {})
+                title = media.get("title", "Unknown")
+                duration = media.get("duration", "--:--")
+                media_type = media.get("type", "??")
+                uid = item.get("uid", "")
+                temp = " [TEMP]" if item.get("temp") else ""
+                queueby = item.get("queueby", "")
+                
+                print(f"{i:3}. [{media_type}] {title}")
+                print(f"     Duration: {duration} | UID: {uid}{temp}")
+                if queueby:
+                    print(f"     Queued by: {queueby}")
+                print()
+        
+        except Exception as e:
+            print(f"Error retrieving playlist: {e}", file=sys.stderr)
+            sys.exit(1)
+    
+    async def cmd_list_users(self) -> None:
+        """Display current user list."""
+        bucket_name = f"cytube_{self.channel}_userlist"
+        
+        try:
+            users_data = await self.client.kv_get(bucket_name, "users")
+            
+            if not users_data:
+                print("User list is empty or not available.")
+                return
+            
+            users = json.loads(users_data)
+            
+            if not users:
+                print("No users online.")
+                return
+            
+            # Sort by rank (descending) then name
+            users_sorted = sorted(users, key=lambda u: (-u.get("rank", 0), u.get("name", "").lower()))
+            
+            print(f"\n{self.channel} Users ({len(users)} online):")
+            print("=" * 80)
+            
+            rank_names = {
+                0: "Guest",
+                1: "Registered",
+                2: "Moderator",
+                3: "Channel Admin",
+                4: "Site Admin",
+            }
+            
+            for user in users_sorted:
+                name = user.get("name", "Unknown")
+                rank = user.get("rank", 0)
+                rank_name = rank_names.get(rank, f"Rank {rank}")
+                afk = " [AFK]" if user.get("meta", {}).get("afk") else ""
+                
+                print(f"  [{rank}] {name} - {rank_name}{afk}")
+        
+        except Exception as e:
+            print(f"Error retrieving user list: {e}", file=sys.stderr)
+            sys.exit(1)
+    
+    async def cmd_list_emotes(self) -> None:
+        """Display channel emotes."""
+        bucket_name = f"cytube_{self.channel}_emotes"
+        
+        try:
+            emotes_data = await self.client.kv_get(bucket_name, "list")
+            
+            if not emotes_data:
+                print("Emote list is empty or not available.")
+                return
+            
+            emotes = json.loads(emotes_data)
+            
+            if not emotes:
+                print("No custom emotes configured.")
+                return
+            
+            print(f"\n{self.channel} Custom Emotes ({len(emotes)} total):")
+            print("=" * 80)
+            
+            for emote in emotes:
+                name = emote.get("name", "Unknown")
+                image = emote.get("image", "")
+                
+                # Truncate long URLs for display
+                if len(image) > 60:
+                    image_display = image[:57] + "..."
+                else:
+                    image_display = image
+                
+                print(f"  {name:30} {image_display}")
+        
+        except Exception as e:
+            print(f"Error retrieving emotes: {e}", file=sys.stderr)
+            sys.exit(1)
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -394,6 +516,14 @@ def create_parser() -> argparse.ArgumentParser:
     
     subparsers.add_parser("voteskip", help="Vote to skip current video")
     
+    # List commands
+    list_parser = subparsers.add_parser("list", help="List channel information")
+    list_subparsers = list_parser.add_subparsers(dest="list_cmd")
+    
+    list_subparsers.add_parser("queue", help="Show current playlist")
+    list_subparsers.add_parser("users", help="Show online users")
+    list_subparsers.add_parser("emotes", help="Show channel emotes")
+    
     return parser
 
 
@@ -462,6 +592,16 @@ async def main() -> None:
         
         elif args.command == "voteskip":
             await cli.cmd_voteskip()
+        
+        elif args.command == "list":
+            if args.list_cmd == "queue":
+                await cli.cmd_list_queue()
+            elif args.list_cmd == "users":
+                await cli.cmd_list_users()
+            elif args.list_cmd == "emotes":
+                await cli.cmd_list_emotes()
+            else:
+                parser.parse_args(["list", "--help"])
         
         else:
             print(f"Error: Unknown command '{args.command}'", file=sys.stderr)
