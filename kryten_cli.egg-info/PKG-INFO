@@ -1,0 +1,16 @@
+Metadata-Version: 2.4
+Name: kryten-cli
+Version: 2.0.0
+Summary: Command-line client for CyTube via kryten-py library
+Author: Kryten Robot Team
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Developers
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Requires-Python: >=3.11
+Requires-Dist: kryten-py>=0.3.4
+Dynamic: author
+Dynamic: classifier
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary

@@ -1,0 +1,19 @@
+{
+  "nats": {
+    "servers": ["nats://localhost:4222"],
+    "user": null,
+    "password": null,
+    "token": null,
+    "connect_timeout": 10,
+    "reconnect_time_wait": 2,
+    "max_reconnect_attempts": 10,
+    "ping_interval": 120
+  },
+  "channels": [
+    {
+      "domain": "cytu.be",
+      "channel": "your-channel-name"
+    }
+  ],
+  "log_level": "INFO"
+}

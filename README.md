@@ -1,6 +1,10 @@
 # Kryten CLI
 
-Command-line client for sending CyTube commands via NATS messaging.
+Command-line client for sending CyTube commands via the kryten-py library.
+
+## Overview
+
+This CLI provides a simple command-line interface to control CyTube channels through the Kryten bridge. It uses the high-level `kryten-py` library for all communication, making it a clean and maintainable reference implementation.
 
 ## Installation
 
@@ -10,32 +14,33 @@ Install the CLI tool:
 pip install -e .
 ```
 
+This will automatically install the `kryten-py` dependency.
+
 Or run directly:
 
 ```bash
-python -m cli.kryten_cli --help
+python kryten_cli.py --help
 ```
 
 ## Configuration
 
-The CLI reads connection settings from `config.json` in the current directory. Create one from the example:
-
-```bash
-cp kryten/config.example.json config.json
-```
-
-Edit `config.json` to set your NATS server and CyTube channel:
+The CLI reads connection settings from `config.json` in the current directory. Create one with your NATS server and CyTube channel:
 
 ```json
 {
-  "cytube": {
-    "channel": "your-channel-name"
-  },
   "nats": {
     "servers": ["nats://localhost:4222"]
-  }
+  },
+  "channels": [
+    {
+      "domain": "cytu.be",
+      "channel": "your-channel-name"
+    }
+  ]
 }
 ```
+
+**Legacy Format Support:** The CLI also supports the older config format with `cytube.channel` for backward compatibility.
 
 You can also specify a different config file:
 
@@ -245,7 +250,7 @@ pip install -e .
 
 Or use the module directly:
 ```bash
-python -m cli.kryten_cli say "Hello"
+python kryten_cli.py say "Hello"
 ```
 
 ### Commands not executing
@@ -254,3 +259,24 @@ python -m cli.kryten_cli say "Hello"
 2. Verify `commands.enabled = true` in Kryten's config
 3. Check NATS connection settings match between CLI and Kryten
 4. Verify channel name is correct
+
+## Version 2.0 - Using kryten-py Library
+
+**Version 2.0** is a complete rewrite that uses the `kryten-py` library instead of direct NATS calls. This provides:
+
+- **Cleaner code**: High-level API instead of low-level NATS
+- **Type safety**: Typed interfaces and better IDE support
+- **Better maintenance**: Shares code with other kryten projects
+- **New features**: Automatic URL parsing for media commands
+
+For migration information from v1.x, see [MIGRATION.md](MIGRATION.md).
+
+For complete details about the refactor, see [REFACTOR_SUMMARY.md](REFACTOR_SUMMARY.md).
+
+## Contributing
+
+This project serves as a reference implementation for using kryten-py. Contributions are welcome!
+
+## License
+
+See LICENSE file for details.

@@ -1,0 +1,8 @@
+README.md
+setup.py
+kryten_cli.egg-info/PKG-INFO
+kryten_cli.egg-info/SOURCES.txt
+kryten_cli.egg-info/dependency_links.txt
+kryten_cli.egg-info/entry_points.txt
+kryten_cli.egg-info/requires.txt
+kryten_cli.egg-info/top_level.txt
