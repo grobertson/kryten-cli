@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kryten-cli"
+version = "2.1.0"
+description = "Command-line client for CyTube via kryten-py library"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Kryten Robot Team", email = "kryten@example.com"}
+]
+keywords = ["cytube", "nats", "cli", "command-line", "microservices", "bot"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Communications :: Chat",
+    "Topic :: Utilities",
+]
+requires-python = ">=3.10"
+dependencies = [
+    "kryten-py>=0.5.7",
+]
+
+[project.urls]
+Homepage = "https://github.com/grobertson/kryten-cli"
+"Bug Tracker" = "https://github.com/grobertson/kryten-cli/issues"
+"Source Code" = "https://github.com/grobertson/kryten-cli"
+Documentation = "https://github.com/grobertson/kryten-cli/blob/main/README.md"
+
+[project.scripts]
+kryten = "kryten_cli:run"

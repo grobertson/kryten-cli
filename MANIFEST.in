@@ -1,0 +1,8 @@
+include README.md
+include LICENSE
+include CHANGELOG.md
+include requirements.txt
+include config.example.json
+include examples.sh
+include examples.ps1
+recursive-include docs *.md

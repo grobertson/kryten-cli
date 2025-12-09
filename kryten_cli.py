@@ -113,6 +113,16 @@ class KrytenCLI:
         try:
             self.client = KrytenClient(self.config_dict)
             await self.client.connect()
+        except OSError as e:
+            # Network/hostname errors
+            servers = self.config_dict.get("nats", {}).get("servers", [])
+            print(f"Error: Cannot connect to NATS server {servers}", file=sys.stderr)
+            print(f"  {e}", file=sys.stderr)
+            print("  Check that:", file=sys.stderr)
+            print("    1. NATS server is running", file=sys.stderr)
+            print("    2. Hostname/IP is correct", file=sys.stderr)
+            print("    3. Port is accessible", file=sys.stderr)
+            sys.exit(1)
         except Exception as e:
             print(f"Error: Failed to connect: {e}", file=sys.stderr)
             sys.exit(1)
@@ -257,13 +267,50 @@ class KrytenCLI:
         """Move video in playlist.
         
         Args:
-            uid: Video UID to move.
-            after: UID to place after.
+            uid: Video UID or position to move.
+            after: UID or position to place after.
         """
         uid_int = int(uid)
         after_int = int(after)
-        await self.client.move_media(self.channel, uid_int, after_int, domain=self.domain)
-        print(f"✓ Moved media {uid} after {after} in {self.channel}")
+        
+        # Map positions to UIDs if needed (same logic as delete)
+        bucket_name = f"cytube_{self.channel.lower()}_playlist"
+        
+        try:
+            playlist = await self.client.kv_get(bucket_name, "items", default=None, parse_json=True)
+            
+            if playlist is None or not isinstance(playlist, list):
+                print(f"Cannot resolve positions: playlist not available", file=sys.stderr)
+                sys.exit(1)
+            
+            # Resolve 'from' position to UID if it's a position number
+            actual_uid = uid_int
+            if uid_int < 1000:  # Position number
+                if uid_int < 1 or uid_int > len(playlist):
+                    print(f"Position {uid_int} out of range (playlist has {len(playlist)} items)", file=sys.stderr)
+                    sys.exit(1)
+                actual_uid = playlist[uid_int - 1].get("uid")
+                if actual_uid is None:
+                    print(f"Could not find UID for position {uid_int}", file=sys.stderr)
+                    sys.exit(1)
+            
+            # Resolve 'after' position to UID if it's a position number
+            actual_after = after_int
+            if after_int < 1000:  # Position number
+                if after_int < 1 or after_int > len(playlist):
+                    print(f"Position {after_int} out of range (playlist has {len(playlist)} items)", file=sys.stderr)
+                    sys.exit(1)
+                actual_after = playlist[after_int - 1].get("uid")
+                if actual_after is None:
+                    print(f"Could not find UID for position {after_int}", file=sys.stderr)
+                    sys.exit(1)
+            
+            await self.client.move_media(self.channel, actual_uid, actual_after, domain=self.domain)
+            print(f"✓ Moved media {uid} after {after} in {self.channel}")
+        
+        except Exception as e:
+            print(f"Error moving media: {e}", file=sys.stderr)
+            sys.exit(1)
     
     async def cmd_playlist_jump(self, uid: str) -> None:
         """Jump to video in playlist.
@@ -354,14 +401,24 @@ class KrytenCLI:
     
     async def cmd_list_queue(self) -> None:
         """Display current playlist queue."""
-        bucket_name = f"cytube_{self.channel.lower()}_playlist"
-        
         try:
-            playlist = await self.client.kv_get(bucket_name, "items", default=None, parse_json=True)
+            # Query state via unified command pattern
+            request = {
+                "service": "robot",
+                "command": "state.playlist"
+            }
+            response = await self.client.nats_request(
+                "kryten.robot.command",
+                request,
+                timeout=5.0
+            )
             
-            if playlist is None:
-                print(f"Playlist data not available. Is Kryten-Robot running for channel '{self.channel}'?")
+            if not response.get("success"):
+                print(f"Error: {response.get('error', 'Unknown error')}")
+                print(f"Is Kryten-Robot running for channel '{self.channel}'?")
                 return
+            
+            playlist = response.get("data", {}).get("playlist", [])
             
             if not playlist:
                 print("Playlist is empty.")
@@ -391,14 +448,24 @@ class KrytenCLI:
     
     async def cmd_list_users(self) -> None:
         """Display current user list."""
-        bucket_name = f"cytube_{self.channel.lower()}_userlist"
-        
         try:
-            users = await self.client.kv_get(bucket_name, "users", default=None, parse_json=True)
+            # Query state via unified command pattern
+            request = {
+                "service": "robot",
+                "command": "state.userlist"
+            }
+            response = await self.client.nats_request(
+                "kryten.robot.command",
+                request,
+                timeout=5.0
+            )
             
-            if users is None:
-                print(f"User list not available. Is Kryten-Robot running for channel '{self.channel}'?")
+            if not response.get("success"):
+                print(f"Error: {response.get('error', 'Unknown error')}")
+                print(f"Is Kryten-Robot running for channel '{self.channel}'?")
                 return
+            
+            users = response.get("data", {}).get("userlist", [])
             
             if not users:
                 print("No users online.")
@@ -432,14 +499,24 @@ class KrytenCLI:
     
     async def cmd_list_emotes(self) -> None:
         """Display channel emotes."""
-        bucket_name = f"cytube_{self.channel.lower()}_emotes"
-        
         try:
-            emotes = await self.client.kv_get(bucket_name, "list", default=None, parse_json=True)
+            # Query state via unified command pattern
+            request = {
+                "service": "robot",
+                "command": "state.emotes"
+            }
+            response = await self.client.nats_request(
+                "kryten.robot.command",
+                request,
+                timeout=5.0
+            )
             
-            if emotes is None:
-                print(f"Emote list not available. Is Kryten-Robot running for channel '{self.channel}'?")
+            if not response.get("success"):
+                print(f"Error: {response.get('error', 'Unknown error')}")
+                print(f"Is Kryten-Robot running for channel '{self.channel}'?")
                 return
+            
+            emotes = response.get("data", {}).get("emotes", [])
             
             if not emotes:
                 print("No custom emotes configured.")

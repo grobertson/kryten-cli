@@ -1,12 +1,12 @@
 {
   "nats": {
-    "servers": ["nats://localhost:4222"],
+    "servers": ["nats://192.168.0.105:4222"],
     "user": null,
     "password": null,
     "token": null,
     "connect_timeout": 10,
     "reconnect_time_wait": 2,
-    "max_reconnect_attempts": 10,
+    "max_reconnect_attempts": 3,
     "ping_interval": 120
   },
   "channels": [
