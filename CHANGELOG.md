@@ -5,6 +5,23 @@ All notable changes to kryten-cli will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2025-12-09
+
+### Added
+
+- **Automatic Channel Discovery**: `--channel` is now optional
+  - CLI automatically queries running Kryten-Robot instances for available channels
+  - If only one channel is found, it's used automatically without specifying `--channel`
+  - If multiple channels exist, displays list and prompts user to specify one
+  - Falls back gracefully with helpful error messages if discovery fails
+- Enhanced user experience with informative messages during auto-discovery
+
+### Changed
+
+- Updated dependency to kryten-py>=0.5.8 (adds `get_channels()` method)
+- `--channel` argument is now optional instead of required
+- Improved help text and documentation to explain auto-discovery feature
+
 ## [2.2.0] - 2025-12-09
 
 ### Changed

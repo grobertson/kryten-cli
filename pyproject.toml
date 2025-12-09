@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kryten-cli"
-version = "2.2.0"
+version = "2.3.0"
 description = "Command-line client for CyTube via kryten-py library"
 readme = "README.md"
 license = {text = "MIT"}
@@ -25,7 +25,7 @@ classifiers = [
 ]
 requires-python = ">=3.10"
 dependencies = [
-    "kryten-py>=0.5.7",
+    "kryten-py>=0.5.8",
 ]
 
 [project.urls]

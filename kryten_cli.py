@@ -5,18 +5,26 @@ This command-line tool sends commands to a CyTube channel through NATS messaging
 It provides a simple interface to all outbound commands supported by the Kryten
 bidirectional bridge.
 
+Channel Auto-Discovery:
+    If --channel is not specified, the CLI automatically discovers available channels
+    from running Kryten-Robot instances. If only one channel is found, it's used
+    automatically. If multiple channels exist, you must specify which one to use.
+
 Usage:
-    kryten --channel CHANNEL [OPTIONS] COMMAND [ARGS...]
+    kryten [--channel CHANNEL] [OPTIONS] COMMAND [ARGS...]
 
 Global Options:
-    --channel CHANNEL       CyTube channel name (required)
+    --channel CHANNEL       CyTube channel name (auto-discovered if not specified)
     --domain DOMAIN         CyTube domain (default: cytu.be)
     --nats URL              NATS server URL (default: nats://localhost:4222)
                             Can be specified multiple times for clustering
     --config PATH           Path to config file (overrides command-line options)
 
 Examples:
-    Send a chat message:
+    Auto-discover single channel:
+        $ kryten say "Hello world"
+    
+    Specify channel explicitly:
         $ kryten --channel lounge say "Hello world"
     
     Use custom domain:
@@ -593,8 +601,7 @@ def create_parser() -> argparse.ArgumentParser:
     # Global options
     parser.add_argument(
         "--channel",
-        required=True,
-        help="CyTube channel name (required)"
+        help="CyTube channel name (auto-discovered if not specified)"
     )
     
     parser.add_argument(
@@ -690,9 +697,61 @@ async def main() -> None:
         parser.print_help()
         sys.exit(1)
     
-    # Initialize CLI with command-line args or config file
+    # Auto-discover channel if not specified
+    channel = args.channel
+    
+    if not channel:
+        # Connect temporarily to discover channels
+        temp_cli = KrytenCLI(
+            channel="",  # Dummy channel for discovery
+            domain=args.domain,
+            nats_servers=args.nats_servers,
+            config_path=args.config,
+        )
+        
+        try:
+            await temp_cli.connect()
+            
+            # Discover channels
+            try:
+                channels = await temp_cli.client.get_channels(timeout=2.0)
+                
+                if not channels:
+                    print("Error: No channels found. Is Kryten-Robot running?", file=sys.stderr)
+                    print("  Start Kryten-Robot or specify --channel manually.", file=sys.stderr)
+                    sys.exit(1)
+                
+                if len(channels) == 1:
+                    # Single channel - use it automatically
+                    channel_info = channels[0]
+                    channel = channel_info["channel"]
+                    domain = channel_info["domain"]
+                    print(f"Auto-discovered channel: {domain}/{channel}")
+                    
+                    # Update args with discovered values
+                    args.domain = domain
+                else:
+                    # Multiple channels - user must specify
+                    print("Error: Multiple channels found. Please specify --channel:", file=sys.stderr)
+                    for ch in channels:
+                        print(f"  {ch['domain']}/{ch['channel']}", file=sys.stderr)
+                    sys.exit(1)
+                
+            except TimeoutError:
+                print("Error: Channel discovery timed out. Is Kryten-Robot running?", file=sys.stderr)
+                print("  Start Kryten-Robot or specify --channel manually.", file=sys.stderr)
+                sys.exit(1)
+            except Exception as e:
+                print(f"Error: Channel discovery failed: {e}", file=sys.stderr)
+                print("  Specify --channel manually.", file=sys.stderr)
+                sys.exit(1)
+            
+        finally:
+            await temp_cli.disconnect()
+    
+    # Initialize CLI with discovered or specified channel
     cli = KrytenCLI(
-        channel=args.channel,
+        channel=channel,
         domain=args.domain,
         nats_servers=args.nats_servers,
         config_path=args.config,

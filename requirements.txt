@@ -2,7 +2,7 @@
 # CyTube command-line interface using kryten-py library
 
 # Core dependency - kryten-py library for CyTube/NATS integration
-kryten-py>=0.5.3
+kryten-py>=0.5.8
 
 # kryten-py brings these transitive dependencies:
 # - nats-py>=2.9.0 (NATS messaging)
