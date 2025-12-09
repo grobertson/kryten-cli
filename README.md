@@ -8,7 +8,19 @@ This CLI provides a simple command-line interface to control CyTube channels thr
 
 ## Installation
 
-Install the CLI tool:
+### From PyPI
+
+```bash
+pip install kryten-cli
+```
+
+Or with pipx for isolated installation:
+
+```bash
+pipx install kryten-cli
+```
+
+### From Source
 
 ```bash
 pip install -e .
@@ -16,15 +28,41 @@ pip install -e .
 
 This will automatically install the `kryten-py` dependency.
 
-Or run directly:
+## Quick Start
+
+The CLI is designed to work without a configuration file. Simply specify the required channel:
 
 ```bash
-python kryten_cli.py --help
+kryten --channel myroom say "Hello world"
 ```
 
-## Configuration
+### Command-Line Options
 
-The CLI reads connection settings from `config.json` in the current directory. Create one with your NATS server and CyTube channel:
+- `--channel CHANNEL` - CyTube channel name **(required)**
+- `--domain DOMAIN` - CyTube domain (default: `cytu.be`)
+- `--nats URL` - NATS server URL (default: `nats://localhost:4222`), can be specified multiple times
+- `--config PATH` - Path to configuration file (optional, overrides other options)
+
+### Examples with Options
+
+Connect to a custom domain:
+```bash
+kryten --channel myroom --domain notcytu.be say "Hi!"
+```
+
+Connect to a remote NATS server:
+```bash
+kryten --channel lounge --nats nats://10.0.0.5:4222 say "Hello"
+```
+
+Use multiple NATS servers for clustering:
+```bash
+kryten --channel lounge --nats nats://host1:4222 --nats nats://host2:4222 say "Hi"
+```
+
+## Configuration File (Optional)
+
+For convenience, you can create a `config.json` file to avoid typing connection details repeatedly:
 
 ```json
 {
@@ -40,64 +78,68 @@ The CLI reads connection settings from `config.json` in the current directory. C
 }
 ```
 
-**Legacy Format Support:** The CLI also supports the older config format with `cytube.channel` for backward compatibility.
-
-You can also specify a different config file:
+Then use it:
 
 ```bash
-kryten --config /path/to/config.json say "Hello"
+kryten --config config.json say "Hello"
 ```
 
+**Note:** When using `--config`, you still need to specify `--channel` as it's always required.
+
+**Legacy Format Support:** The CLI also supports the older config format with `cytube.channel` for backward compatibility.
+
 ## Usage Examples
+
+All examples below assume you're specifying `--channel channelname` (or using `--config`).
 
 ### Chat Commands
 
 Send a chat message:
 ```bash
-kryten say "Hello world"
+kryten --channel lounge say "Hello world"
 ```
 
 Send a private message:
 ```bash
-kryten pm UserName "Hi there!"
+kryten --channel lounge pm UserName "Hi there!"
 ```
 
 ### Playlist Commands
 
 Add video to end of playlist:
 ```bash
-kryten playlist add https://youtube.com/watch?v=xyz
-kryten playlist add yt:abc123
+kryten --channel lounge playlist add https://youtube.com/watch?v=xyz
+kryten --channel lounge playlist add yt:abc123
 ```
 
 Add video to play next:
 ```bash
-kryten playlist addnext https://youtube.com/watch?v=abc
+kryten --channel lounge playlist addnext https://youtube.com/watch?v=abc
 ```
 
 Add as temporary (auto-deleted after playing):
 ```bash
-kryten playlist add --temp https://youtube.com/watch?v=xyz
+kryten --channel lounge playlist add --temp https://youtube.com/watch?v=xyz
 ```
 
 Delete video from playlist:
 ```bash
-kryten playlist del video-uid-123
+kryten --channel lounge playlist del video-uid-123
 ```
 
 Move video in playlist:
 ```bash
-kryten playlist move video-uid-5 after video-uid-3
+kryten --channel lounge playlist move video-uid-5 after video-uid-3
 ```
 
 Jump to specific video:
 ```bash
-kryten playlist jump video-uid-7
+kryten --channel lounge playlist jump video-uid-7
 ```
 
 Clear entire playlist:
 ```bash
-kryten playlist clear
+kryten --channel lounge playlist clear
 ```
 
 Shuffle playlist:

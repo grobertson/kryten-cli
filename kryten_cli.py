@@ -5,40 +5,60 @@ This command-line tool sends commands to a CyTube channel through NATS messaging
 It provides a simple interface to all outbound commands supported by the Kryten
 bidirectional bridge.
 
+Usage:
+    kryten --channel CHANNEL [OPTIONS] COMMAND [ARGS...]
+
+Global Options:
+    --channel CHANNEL       CyTube channel name (required)
+    --domain DOMAIN         CyTube domain (default: cytu.be)
+    --nats URL              NATS server URL (default: nats://localhost:4222)
+                            Can be specified multiple times for clustering
+    --config PATH           Path to config file (overrides command-line options)
+
 Examples:
     Send a chat message:
-        $ kryten say "Hello world"
+        $ kryten --channel lounge say "Hello world"
+    
+    Use custom domain:
+        $ kryten --channel myroom --domain notcytu.be say "Hi!"
+    
+    Connect to remote NATS:
+        $ kryten --channel lounge --nats nats://10.0.0.5:4222 say "Hello"
     
     Send a private message:
-        $ kryten pm UserName "Hi there!"
+        $ kryten --channel lounge pm UserName "Hi there!"
     
     Add video to playlist:
-        $ kryten playlist add https://youtube.com/watch?v=xyz
-        $ kryten playlist addnext https://youtube.com/watch?v=abc
+        $ kryten --channel lounge playlist add https://youtube.com/watch?v=xyz
+        $ kryten --channel lounge playlist addnext https://youtube.com/watch?v=abc
     
     Delete from playlist:
-        $ kryten playlist del 5
+        $ kryten --channel lounge playlist del 5
     
     Playlist management:
-        $ kryten playlist move 3 after 7
-        $ kryten playlist jump 5
-        $ kryten playlist clear
-        $ kryten playlist shuffle
-        $ kryten playlist settemp 5 true
+        $ kryten --channel lounge playlist move 3 after 7
+        $ kryten --channel lounge playlist jump 5
+        $ kryten --channel lounge playlist clear
+        $ kryten --channel lounge playlist shuffle
+        $ kryten --channel lounge playlist settemp 5 true
     
     Playback control:
-        $ kryten pause
-        $ kryten play
-        $ kryten seek 120.5
+        $ kryten --channel lounge pause
+        $ kryten --channel lounge play
+        $ kryten --channel lounge seek 120.5
     
     Moderation:
-        $ kryten kick UserName "Stop spamming"
-        $ kryten ban UserName "Banned for harassment"
-        $ kryten voteskip
+        $ kryten --channel lounge kick UserName "Stop spamming"
+        $ kryten --channel lounge ban UserName "Banned for harassment"
+        $ kryten --channel lounge voteskip
 
-Configuration:
-    The CLI reads NATS connection settings from config.json in the current
-    directory or from a path specified with --config.
+Configuration File:
+    You can optionally use a JSON configuration file instead of command-line options:
+    
+        $ kryten --config myconfig.json say "Hello"
+    
+    The config file should contain NATS connection settings and channel information.
+    See config.example.json for the format.
 """
 
 import argparse
@@ -55,43 +75,59 @@ from kryten import KrytenClient
 class KrytenCLI:
     """Command-line interface for Kryten CyTube commands."""
     
-    def __init__(self, config_path: str = "config.json"):
+    def __init__(
+        self,
+        channel: str,
+        domain: str = "cytu.be",
+        nats_servers: Optional[list[str]] = None,
+        config_path: Optional[str] = None,
+    ):
         """Initialize CLI with configuration.
         
         Args:
-            config_path: Path to configuration file.
+            channel: CyTube channel name (required).
+            domain: CyTube domain (default: cytu.be).
+            nats_servers: NATS server URLs (default: ["nats://localhost:4222"]).
+            config_path: Optional path to configuration file (overrides defaults).
         """
-        self.config_path = Path(config_path)
-        self.config_dict = self._load_config()
+        self.channel = channel
+        self.domain = domain
         self.client: Optional[KrytenClient] = None
         
-        # Extract channel and domain from config
-        channels = self.config_dict.get("channels", [])
-        if not channels:
-            # Legacy config format support
-            cytube = self.config_dict.get("cytube", {})
-            self.channel = cytube.get("channel", "")
-            self.domain = cytube.get("domain", "cytu.be")
+        # Build config dict from command-line args or config file
+        if config_path and Path(config_path).exists():
+            self.config_dict = self._load_config(config_path)
         else:
-            self.channel = channels[0]["channel"]
-            self.domain = channels[0].get("domain", "cytu.be")
+            # Use defaults or command-line overrides
+            if nats_servers is None:
+                nats_servers = ["nats://localhost:4222"]
+            
+            self.config_dict = {
+                "nats": {
+                    "servers": nats_servers
+                },
+                "channels": [
+                    {
+                        "domain": domain,
+                        "channel": channel
+                    }
+                ]
+            }
     
-    def _load_config(self) -> dict:
+    def _load_config(self, config_path: str) -> dict:
         """Load configuration from JSON file.
+        
+        Args:
+            config_path: Path to configuration file.
         
         Returns:
             Configuration dictionary.
         
         Raises:
-            SystemExit: If config file not found or invalid.
+            SystemExit: If config file is invalid.
         """
-        if not self.config_path.exists():
-            print(f"Error: Configuration file not found: {self.config_path}", file=sys.stderr)
-            print("Create a config.json file with NATS and CyTube settings.", file=sys.stderr)
-            sys.exit(1)
-        
         try:
-            with self.config_path.open("r", encoding="utf-8") as f:
+            with Path(config_path).open("r", encoding="utf-8") as f:
                 config = json.load(f)
                 
             # Ensure channels list exists for kryten-py
@@ -554,15 +590,29 @@ def create_parser() -> argparse.ArgumentParser:
         epilog="See 'kryten <command> --help' for command-specific help."
     )
     
+    # Global options
     parser.add_argument(
-        "--config",
-        default="config.json",
-        help="Path to configuration file (default: config.json)"
+        "--channel",
+        required=True,
+        help="CyTube channel name (required)"
     )
     
     parser.add_argument(
-        "--channel",
-        help="Override channel from config"
+        "--domain",
+        default="cytu.be",
+        help="CyTube domain (default: cytu.be)"
+    )
+    
+    parser.add_argument(
+        "--nats",
+        action="append",
+        dest="nats_servers",
+        help="NATS server URL (can be specified multiple times, default: nats://localhost:4222)"
+    )
+    
+    parser.add_argument(
+        "--config",
+        help="Path to configuration file (overrides other options if present)"
     )
     
     subparsers = parser.add_subparsers(dest="command", help="Command to execute")
@@ -640,12 +690,13 @@ async def main() -> None:
         parser.print_help()
         sys.exit(1)
     
-    # Initialize CLI
-    cli = KrytenCLI(args.config)
-    
-    # Override channel if specified
-    if args.channel:
-        cli.channel = args.channel
+    # Initialize CLI with command-line args or config file
+    cli = KrytenCLI(
+        channel=args.channel,
+        domain=args.domain,
+        nats_servers=args.nats_servers,
+        config_path=args.config,
+    )
     
     # Connect to NATS
     await cli.connect()

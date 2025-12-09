@@ -5,6 +5,24 @@ All notable changes to kryten-cli will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2025-12-09
+
+### Changed
+
+- **BREAKING**: Configuration file is now optional - all settings can be provided via command-line
+- **BREAKING**: `--channel` is now a required command-line argument
+- Improved command-line interface with better defaults:
+  - `--domain` defaults to `cytu.be` (optional)
+  - `--nats` defaults to `nats://localhost:4222` (optional, can be specified multiple times)
+  - `--config` is now optional and overrides command-line options when present
+- Enhanced usage examples in help text and documentation
+
+### Added
+
+- Command-line options: `--channel` (required), `--domain`, `--nats` (repeatable)
+- More flexible deployment: works without config file for quick commands
+- Better default values for common use cases
+
 ## [2.1.1] - 2025-12-09
 
 ### Changed
