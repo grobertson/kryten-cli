@@ -595,7 +595,7 @@ class KrytenCLI:
                 return
             
             # Text format
-            uptime_hours = stats.get("uptime", 0) / 3600
+            uptime_hours = stats.get("uptime_seconds", 0) / 3600
             events = stats.get("events", {})
             commands = stats.get("commands", {})
             connections = stats.get("connections", {})
@@ -699,11 +699,15 @@ class KrytenCLI:
         """Check if Kryten-Robot is alive."""
         try:
             result = await self.client.ping()
-            status = result.get("status", "unknown")
+            pong = result.get("pong", False)
             timestamp = result.get("timestamp", "N/A")
+            uptime = result.get("uptime_seconds", 0)
+            version = result.get("version", "N/A")
             
-            print(f"✅ Kryten-Robot is {status}")
+            print(f"✅ Kryten-Robot is alive")
             print(f"   Timestamp: {timestamp}")
+            print(f"   Uptime: {uptime / 3600:.2f} hours")
+            print(f"   Version: {version}")
             
         except TimeoutError:
             print("❌ Kryten-Robot is not responding", file=sys.stderr)
@@ -719,8 +723,7 @@ class KrytenCLI:
             
             success = result.get("success", False)
             message = result.get("message", "")
-            changes = result.get("changes_applied", [])
-            unsafe = result.get("unsafe_changes", [])
+            changes = result.get("changes", {})
             errors = result.get("errors", [])
             
             if success:
@@ -729,16 +732,11 @@ class KrytenCLI:
                 print(f"⚠️  {message}")
             
             if changes:
-                print(f"\nChanges applied:")
-                for change in changes:
-                    print(f"  • {change}")
+                print(f"\nChanges:")
+                for key, change in changes.items():
+                    print(f"  • {key}: {change}")
             else:
                 print("\nNo changes detected.")
-            
-            if unsafe:
-                print(f"\n⚠️  Unsafe changes detected (restart required):")
-                for change in unsafe:
-                    print(f"  • {change}")
             
             if errors:
                 print(f"\n❌ Errors:")
