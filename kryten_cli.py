@@ -955,13 +955,17 @@ async def main() -> None:
         parser.print_help()
         sys.exit(1)
     
-    # Auto-discover channel if not specified
+    # System commands don't need a channel (they query robot service directly)
+    # Skip channel discovery for system commands
+    is_system_command = args.command == "system"
+    
+    # Auto-discover channel if not specified (unless it's a system command)
     channel = args.channel
     
-    if not channel:
+    if not is_system_command and not channel:
         # Connect temporarily to discover channels
         temp_cli = KrytenCLI(
-            channel="",  # Dummy channel for discovery
+            channel="_discovery",  # Placeholder channel for discovery
             domain=args.domain,
             nats_servers=args.nats_servers,
             config_path=args.config,
@@ -1006,6 +1010,13 @@ async def main() -> None:
             
         finally:
             await temp_cli.disconnect()
+    
+    # For system commands, use placeholder channel (not actually used)
+    # For other commands, channel is required at this point
+    if is_system_command and not channel:
+        # System commands query robot service, not channel-specific subjects
+        # Use placeholder to satisfy KrytenClient config validation
+        channel = "_system"
     
     # Initialize CLI with discovered or specified channel
     cli = KrytenCLI(
