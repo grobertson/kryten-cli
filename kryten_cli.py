@@ -72,6 +72,7 @@ Configuration File:
 import argparse
 import asyncio
 import json
+import logging
 import re
 import sys
 from pathlib import Path
@@ -155,7 +156,13 @@ class KrytenCLI:
     async def connect(self) -> None:
         """Connect to NATS server using kryten-py client."""
         try:
-            self.client = KrytenClient(self.config_dict)
+            # Create a logger that only shows warnings and errors
+            # This keeps CLI output clean (no "Connected/Disconnected" messages)
+            logger = logging.getLogger('kryten_cli')
+            logger.setLevel(logging.WARNING)
+            logger.addHandler(logging.NullHandler())
+            
+            self.client = KrytenClient(self.config_dict, logger=logger)
             await self.client.connect()
         except OSError as e:
             # Network/hostname errors
