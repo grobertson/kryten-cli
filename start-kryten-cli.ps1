@@ -195,7 +195,10 @@ if (-not (Test-Path $AppScript)) {
     exit 1
 }
 
-# Step 5: Run the application
+# Step 5: Clear PYTHONPATH to avoid conflicts with development versions
+$env:PYTHONPATH = ""
+
+# Step 6: Run the application
 Write-Host ""
 Write-Host "Starting kryten-cli..." -ForegroundColor Green
 Write-Host ""
