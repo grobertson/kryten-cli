@@ -199,10 +199,6 @@ if (-not (Test-Path $AppScript)) {
 $env:PYTHONPATH = ""
 
 # Step 6: Run the application
-Write-Host ""
-Write-Host "Starting kryten-cli..." -ForegroundColor Green
-Write-Host ""
-
 try {
     if ($Command.Count -eq 0) {
         # No command provided, show help
@@ -212,19 +208,8 @@ try {
         & $VenvPython $AppScript @Command
     }
     
-    $exitCode = $LASTEXITCODE
-    
-    if ($exitCode -eq 0) {
-        Write-Host ""
-        Write-Success "Command completed successfully"
-    } else {
-        Write-Host ""
-        Write-ErrorMsg "Command failed with exit code: $exitCode"
-    }
-    
-    exit $exitCode
+    exit $LASTEXITCODE
 } catch {
-    Write-Host ""
-    Write-ErrorMsg "Failed to execute kryten-cli: $_"
+    Write-Host "Error: $_" -ForegroundColor Red
     exit 1
 }
