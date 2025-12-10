@@ -97,13 +97,26 @@ class KrytenCLI:
             channel: CyTube channel name (required).
             domain: CyTube domain (default: cytu.be).
             nats_servers: NATS server URLs (default: ["nats://localhost:4222"]).
-            config_path: Optional path to configuration file (overrides defaults).
+            config_path: Optional path to configuration file. If None, checks default locations.
         """
         self.channel = channel
         self.domain = domain
         self.client: Optional[KrytenClient] = None
         
-        # Build config dict from command-line args or config file
+        # Determine config file path if not explicitly provided
+        if config_path is None:
+            # Try default locations in order
+            default_paths = [
+                Path("/etc/kryten/kryten-cli/config.json"),
+                Path("config.json")
+            ]
+            
+            for path in default_paths:
+                if path.exists() and path.is_file():
+                    config_path = str(path)
+                    break
+        
+        # Build config dict from config file or command-line args
         if config_path and Path(config_path).exists():
             self.config_dict = self._load_config(config_path)
         else:
@@ -830,7 +843,7 @@ def create_parser() -> argparse.ArgumentParser:
     
     parser.add_argument(
         "--config",
-        help="Path to configuration file (overrides other options if present)"
+        help="Path to configuration file (default: /etc/kryten/kryten-cli/config.json or ./config.json)"
     )
     
     subparsers = parser.add_subparsers(dest="command", help="Command to execute")
