@@ -164,7 +164,10 @@ if ! check_kryten_py "$VENV_PYTHON"; then
     fi
 fi
 
-# Step 4: Run kryten-cli with all arguments
+# Step 4: Clear PYTHONPATH to avoid conflicts with development versions
+export PYTHONPATH=""
+
+# Step 5: Run kryten-cli with all arguments
 echo ""
 print_success "Environment ready"
 echo ""

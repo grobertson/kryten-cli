@@ -31,11 +31,9 @@ $VenvPip = Join-Path $VenvPath "Scripts\pip.exe"
 $RequirementsFile = Join-Path $ScriptDir "requirements.txt"
 $AppScript = Join-Path $ScriptDir "kryten_cli.py"
 
-# Color output functions
-function Write-Success { param($Message) Write-Host "✓ $Message" -ForegroundColor Green }
-function Write-Info { param($Message) Write-Host "ℹ $Message" -ForegroundColor Cyan }
-function Write-Warning { param($Message) Write-Host "⚠ $Message" -ForegroundColor Yellow }
+# Color output functions (only for errors/warnings)
 function Write-ErrorMsg { param($Message) Write-Host "✗ $Message" -ForegroundColor Red }
+function Write-Warning { param($Message) Write-Host "⚠ $Message" -ForegroundColor Yellow }
 
 # Check if Python is available
 function Test-PythonAvailable {
@@ -43,7 +41,6 @@ function Test-PythonAvailable {
         $pythonCmd = Get-Command python -ErrorAction Stop
         $version = & python --version 2>&1
         if ($version -match "Python 3\.(1[1-9]|[2-9]\d)") {
-            Write-Success "Found $version at $($pythonCmd.Source)"
             return $true
         } else {
             Write-ErrorMsg "Python 3.11+ required, found: $version"
@@ -51,7 +48,7 @@ function Test-PythonAvailable {
         }
     } catch {
         Write-ErrorMsg "Python not found in PATH"
-        Write-Info "Install Python 3.11+ from https://www.python.org/"
+        Write-Host "Install Python 3.11+ from https://www.python.org/" -ForegroundColor Gray
         return $false
     }
 }
@@ -86,16 +83,13 @@ function Test-VenvValid {
 function New-VirtualEnvironment {
     param($Path)
     
-    Write-Info "Creating virtual environment at $Path"
-    
     try {
-        & python -m venv $Path
+        & python -m venv $Path 2>&1 | Out-Null
         
         if (-not (Test-VenvValid $Path)) {
             throw "Failed to create valid virtual environment"
         }
         
-        Write-Success "Virtual environment created successfully"
         return $true
     } catch {
         Write-ErrorMsg "Failed to create virtual environment: $_"
@@ -112,21 +106,18 @@ function Install-Requirements {
         return $false
     }
     
-    Write-Info "Installing/updating dependencies from requirements.txt"
-    
     try {
-        & $PipExe install --upgrade pip --quiet
-        & $PipExe install -r $RequirementsPath --upgrade
+        & $PipExe install --upgrade pip --quiet 2>&1 | Out-Null
+        & $PipExe install -r $RequirementsPath --upgrade --quiet 2>&1 | Out-Null
         
         if ($LASTEXITCODE -ne 0) {
             throw "pip install failed with exit code $LASTEXITCODE"
         }
         
-        Write-Success "Dependencies installed successfully"
         return $true
     } catch {
         Write-ErrorMsg "Failed to install dependencies: $_"
-        Write-Info "Try manually: $PipExe install -r $RequirementsPath"
+        Write-Host "Try manually: $PipExe install -r $RequirementsPath" -ForegroundColor Gray
         return $false
     }
 }
@@ -138,22 +129,14 @@ function Test-KrytenPyInstalled {
     try {
         $version = & $PythonExe -c "import kryten; print(kryten.__version__)" 2>&1
         if ($LASTEXITCODE -eq 0) {
-            Write-Success "kryten-py version $version is installed"
             return $true
         }
     } catch {}
     
-    Write-Warning "kryten-py not found or not importable"
     return $false
 }
 
-# Main execution
-Write-Host ""
-Write-Host "═══════════════════════════════════════════════════════" -ForegroundColor Cyan
-Write-Host "  Kryten CLI Startup" -ForegroundColor Cyan
-Write-Host "═══════════════════════════════════════════════════════" -ForegroundColor Cyan
-Write-Host ""
-
+# Main execution - silent unless there are errors
 # Step 1: Check Python
 if (-not (Test-PythonAvailable)) {
     exit 1
@@ -161,17 +144,13 @@ if (-not (Test-PythonAvailable)) {
 
 # Step 2: Check/Create venv
 if (-not (Test-VenvValid $VenvPath)) {
-    Write-Warning "Virtual environment needs to be created or repaired"
-    
     # Remove corrupted venv if it exists
     if (Test-Path $VenvPath) {
-        Write-Info "Removing corrupted virtual environment"
         try {
-            Remove-Item -Recurse -Force $VenvPath -ErrorAction Stop
+            Remove-Item -Recurse -Force $VenvPath -ErrorAction Stop 2>&1 | Out-Null
         } catch {
             Write-ErrorMsg "Could not remove corrupted venv (may be in use)"
-            Write-Info "Please close all terminals/processes using: $VenvPath"
-            Write-Info "Then delete manually or restart your computer"
+            Write-Host "Please close all terminals/processes using: $VenvPath" -ForegroundColor Gray
             exit 1
         }
     }
@@ -183,7 +162,6 @@ if (-not (Test-VenvValid $VenvPath)) {
 
 # Step 3: Install/verify dependencies
 if (-not (Test-KrytenPyInstalled $VenvPython)) {
-    Write-Info "Installing dependencies for first run"
     if (-not (Install-Requirements $VenvPip $RequirementsFile)) {
         exit 1
     }
@@ -195,11 +173,10 @@ if (-not (Test-Path $AppScript)) {
     exit 1
 }
 
-# Step 5: Run the application
-Write-Host ""
-Write-Host "Starting kryten-cli..." -ForegroundColor Green
-Write-Host ""
+# Step 5: Clear PYTHONPATH to avoid conflicts with development versions
+$env:PYTHONPATH = ""
 
+# Step 6: Run the application
 try {
     if ($Command.Count -eq 0) {
         # No command provided, show help
@@ -209,19 +186,8 @@ try {
         & $VenvPython $AppScript @Command
     }
     
-    $exitCode = $LASTEXITCODE
-    
-    if ($exitCode -eq 0) {
-        Write-Host ""
-        Write-Success "Command completed successfully"
-    } else {
-        Write-Host ""
-        Write-ErrorMsg "Command failed with exit code: $exitCode"
-    }
-    
-    exit $exitCode
+    exit $LASTEXITCODE
 } catch {
-    Write-Host ""
-    Write-ErrorMsg "Failed to execute kryten-cli: $_"
+    Write-Host "Error: $_" -ForegroundColor Red
     exit 1
 }

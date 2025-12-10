@@ -72,6 +72,7 @@ Configuration File:
 import argparse
 import asyncio
 import json
+import logging
 import re
 import sys
 from pathlib import Path
@@ -96,13 +97,26 @@ class KrytenCLI:
             channel: CyTube channel name (required).
             domain: CyTube domain (default: cytu.be).
             nats_servers: NATS server URLs (default: ["nats://localhost:4222"]).
-            config_path: Optional path to configuration file (overrides defaults).
+            config_path: Optional path to configuration file. If None, checks default locations.
         """
         self.channel = channel
         self.domain = domain
         self.client: Optional[KrytenClient] = None
         
-        # Build config dict from command-line args or config file
+        # Determine config file path if not explicitly provided
+        if config_path is None:
+            # Try default locations in order
+            default_paths = [
+                Path("/etc/kryten/kryten-cli/config.json"),
+                Path("config.json")
+            ]
+            
+            for path in default_paths:
+                if path.exists() and path.is_file():
+                    config_path = str(path)
+                    break
+        
+        # Build config dict from config file or command-line args
         if config_path and Path(config_path).exists():
             self.config_dict = self._load_config(config_path)
         else:
@@ -155,7 +169,13 @@ class KrytenCLI:
     async def connect(self) -> None:
         """Connect to NATS server using kryten-py client."""
         try:
-            self.client = KrytenClient(self.config_dict)
+            # Create a logger that only shows warnings and errors
+            # This keeps CLI output clean (no "Connected/Disconnected" messages)
+            logger = logging.getLogger('kryten_cli')
+            logger.setLevel(logging.WARNING)
+            logger.addHandler(logging.NullHandler())
+            
+            self.client = KrytenClient(self.config_dict, logger=logger)
             await self.client.connect()
         except OSError as e:
             # Network/hostname errors
@@ -584,6 +604,210 @@ class KrytenCLI:
         except Exception as e:
             print(f"Error retrieving emotes: {e}", file=sys.stderr)
             sys.exit(1)
+    
+    async def cmd_system_stats(self, format: str = "text") -> None:
+        """Display Kryten-Robot runtime statistics."""
+        try:
+            stats = await self.client.get_stats()
+            
+            if format == "json":
+                print(json.dumps(stats, indent=2))
+                return
+            
+            # Text format
+            uptime_hours = stats.get("uptime_seconds", 0) / 3600
+            events = stats.get("events", {})
+            commands = stats.get("commands", {})
+            connections = stats.get("connections", {})
+            state = stats.get("state", {})
+            memory = stats.get("memory", {})
+            
+            print("\nKryten-Robot Runtime Statistics")
+            print("=" * 80)
+            print(f"\nUptime: {uptime_hours:.2f} hours")
+            
+            print(f"\nEvents:")
+            print(f"  Total Published:   {events.get('total_published', 0):,}")
+            print(f"  Rate (1 min):      {events.get('rate_1min', 0):.2f} events/sec")
+            print(f"  Rate (5 min):      {events.get('rate_5min', 0):.2f} events/sec")
+            print(f"  Last Event:        {events.get('last_event_type', 'N/A')}")
+            print(f"  Last Event Time:   {events.get('last_event_time', 'N/A')}")
+            
+            print(f"\nCommands:")
+            print(f"  Total Received:    {commands.get('total_received', 0):,}")
+            print(f"  Succeeded:         {commands.get('succeeded', 0):,}")
+            print(f"  Failed:            {commands.get('failed', 0):,}")
+            print(f"  Rate (1 min):      {commands.get('rate_1min', 0):.2f} commands/sec")
+            print(f"  Rate (5 min):      {commands.get('rate_5min', 0):.2f} commands/sec")
+            
+            cytube = connections.get("cytube", {})
+            nats = connections.get("nats", {})
+            
+            print(f"\nConnections:")
+            print(f"  CyTube:")
+            print(f"    Connected:       {cytube.get('connected', False)}")
+            print(f"    Connected Since: {cytube.get('connected_since', 'N/A')}")
+            print(f"    Reconnect Count: {cytube.get('reconnect_count', 0)}")
+            print(f"    Last Event:      {cytube.get('last_event_time', 'N/A')}")
+            print(f"  NATS:")
+            print(f"    Connected:       {nats.get('connected', False)}")
+            print(f"    Connected Since: {nats.get('connected_since', 'N/A')}")
+            print(f"    Reconnect Count: {nats.get('reconnect_count', 0)}")
+            print(f"    Server:          {nats.get('connected_url', 'N/A')}")
+            
+            print(f"\nChannel State:")
+            print(f"  Users:             {state.get('users', 0)}")
+            print(f"  Playlist Items:    {state.get('playlist', 0)}")
+            print(f"  Emotes:            {state.get('emotes', 0)}")
+            
+            if memory:
+                print(f"\nMemory Usage:")
+                print(f"  RSS:               {memory.get('rss_mb', 0):.1f} MB")
+                print(f"  VMS:               {memory.get('vms_mb', 0):.1f} MB")
+            
+        except Exception as e:
+            print(f"Error retrieving stats: {e}", file=sys.stderr)
+            sys.exit(1)
+    
+    async def cmd_system_config(self, format: str = "text") -> None:
+        """Display Kryten-Robot configuration."""
+        try:
+            config = await self.client.get_config()
+            
+            if format == "json":
+                print(json.dumps(config, indent=2))
+                return
+            
+            # Text format - display key settings
+            print("\nKryten-Robot Configuration")
+            print("=" * 80)
+            
+            cytube = config.get("cytube", {})
+            nats = config.get("nats", {})
+            commands_cfg = config.get("commands", {})
+            health = config.get("health", {})
+            
+            print(f"\nCyTube:")
+            print(f"  Domain:            {cytube.get('domain', 'N/A')}")
+            print(f"  Channel:           {cytube.get('channel', 'N/A')}")
+            print(f"  Username:          {cytube.get('username', 'N/A')}")
+            print(f"  Password:          {cytube.get('password', 'N/A')}")
+            
+            print(f"\nNATS:")
+            servers = nats.get("servers", [])
+            if isinstance(servers, list):
+                for i, server in enumerate(servers):
+                    print(f"  Server {i+1}:          {server}")
+            print(f"  User:              {nats.get('user', 'N/A')}")
+            print(f"  Password:          {nats.get('password', 'N/A')}")
+            
+            print(f"\nCommands:")
+            print(f"  Enabled:           {commands_cfg.get('enabled', False)}")
+            
+            print(f"\nHealth:")
+            print(f"  Enabled:           {health.get('enabled', False)}")
+            print(f"  Host:              {health.get('host', 'N/A')}")
+            print(f"  Port:              {health.get('port', 'N/A')}")
+            
+            print(f"\nLog Level:           {config.get('log_level', 'N/A')}")
+            
+        except Exception as e:
+            print(f"Error retrieving config: {e}", file=sys.stderr)
+            sys.exit(1)
+    
+    async def cmd_system_ping(self) -> None:
+        """Check if Kryten-Robot is alive."""
+        try:
+            result = await self.client.ping()
+            pong = result.get("pong", False)
+            timestamp = result.get("timestamp", "N/A")
+            uptime = result.get("uptime_seconds", 0)
+            version = result.get("version", "N/A")
+            
+            print(f"✅ Kryten-Robot is alive")
+            print(f"   Timestamp: {timestamp}")
+            print(f"   Uptime: {uptime / 3600:.2f} hours")
+            print(f"   Version: {version}")
+            
+        except TimeoutError:
+            print("❌ Kryten-Robot is not responding", file=sys.stderr)
+            sys.exit(1)
+        except Exception as e:
+            print(f"❌ Error pinging robot: {e}", file=sys.stderr)
+            sys.exit(1)
+    
+    async def cmd_system_reload(self, config_path: Optional[str] = None) -> None:
+        """Reload Kryten-Robot configuration."""
+        try:
+            result = await self.client.reload_config(config_path)
+            
+            success = result.get("success", False)
+            message = result.get("message", "")
+            changes = result.get("changes", {})
+            errors = result.get("errors", [])
+            
+            if success:
+                print(f"✅ {message}")
+            else:
+                print(f"⚠️  {message}")
+            
+            if changes:
+                print(f"\nChanges:")
+                for key, change in changes.items():
+                    print(f"  • {key}: {change}")
+            else:
+                print("\nNo changes detected.")
+            
+            if errors:
+                print(f"\n❌ Errors:")
+                for error in errors:
+                    print(f"  • {error}")
+                sys.exit(1)
+                
+        except Exception as e:
+            print(f"Error reloading config: {e}", file=sys.stderr)
+            sys.exit(1)
+    
+    async def cmd_system_shutdown(
+        self,
+        delay: int = 0,
+        reason: str = "Remote shutdown via CLI",
+        confirm: bool = True
+    ) -> None:
+        """Shutdown Kryten-Robot gracefully."""
+        try:
+            # Confirmation prompt
+            if confirm:
+                if delay > 0:
+                    prompt = f"Shutdown Kryten-Robot in {delay} seconds? [y/N]: "
+                else:
+                    prompt = "Shutdown Kryten-Robot immediately? [y/N]: "
+                
+                response = input(prompt).strip().lower()
+                if response not in ["y", "yes"]:
+                    print("Shutdown cancelled.")
+                    return
+            
+            result = await self.client.shutdown(delay, reason)
+            
+            success = result.get("success", False)
+            message = result.get("message", "")
+            delay_actual = result.get("delay_seconds", 0)
+            shutdown_time = result.get("shutdown_time", "N/A")
+            
+            if success:
+                print(f"✅ {message}")
+                if delay_actual > 0:
+                    print(f"   Shutdown scheduled: {shutdown_time}")
+                    print(f"   Delay: {delay_actual} seconds")
+                print(f"   Reason: {reason}")
+            else:
+                print(f"❌ Shutdown failed: {message}", file=sys.stderr)
+                sys.exit(1)
+                
+        except Exception as e:
+            print(f"Error shutting down robot: {e}", file=sys.stderr)
+            sys.exit(1)
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -619,7 +843,7 @@ def create_parser() -> argparse.ArgumentParser:
     
     parser.add_argument(
         "--config",
-        help="Path to configuration file (overrides other options if present)"
+        help="Path to configuration file (default: /etc/kryten/kryten-cli/config.json or ./config.json)"
     )
     
     subparsers = parser.add_subparsers(dest="command", help="Command to execute")
@@ -685,6 +909,53 @@ def create_parser() -> argparse.ArgumentParser:
     list_subparsers.add_parser("users", help="Show online users")
     list_subparsers.add_parser("emotes", help="Show channel emotes")
     
+    # System commands
+    system_parser = subparsers.add_parser("system", help="System management commands")
+    system_subparsers = system_parser.add_subparsers(dest="system_cmd")
+    
+    stats_parser = system_subparsers.add_parser("stats", help="Show runtime statistics")
+    stats_parser.add_argument(
+        "--format",
+        choices=["text", "json"],
+        default="text",
+        help="Output format (default: text)"
+    )
+    
+    config_parser = system_subparsers.add_parser("config", help="Show configuration")
+    config_parser.add_argument(
+        "--format",
+        choices=["text", "json"],
+        default="text",
+        help="Output format (default: text)"
+    )
+    
+    system_subparsers.add_parser("ping", help="Check if robot is alive")
+    
+    reload_parser = system_subparsers.add_parser("reload", help="Reload configuration")
+    reload_parser.add_argument(
+        "--config",
+        dest="reload_config_path",
+        help="Path to config file (uses current if not specified)"
+    )
+    
+    shutdown_parser = system_subparsers.add_parser("shutdown", help="Shutdown robot")
+    shutdown_parser.add_argument(
+        "--delay",
+        type=int,
+        default=0,
+        help="Seconds to wait before shutdown (0-300, default: 0)"
+    )
+    shutdown_parser.add_argument(
+        "--reason",
+        default="Remote shutdown via CLI",
+        help="Reason for shutdown (for logging)"
+    )
+    shutdown_parser.add_argument(
+        "--no-confirm",
+        action="store_true",
+        help="Skip confirmation prompt"
+    )
+    
     return parser
 
 
@@ -697,13 +968,17 @@ async def main() -> None:
         parser.print_help()
         sys.exit(1)
     
-    # Auto-discover channel if not specified
+    # System commands don't need a channel (they query robot service directly)
+    # Skip channel discovery for system commands
+    is_system_command = args.command == "system"
+    
+    # Auto-discover channel if not specified (unless it's a system command)
     channel = args.channel
     
-    if not channel:
+    if not is_system_command and not channel:
         # Connect temporarily to discover channels
         temp_cli = KrytenCLI(
-            channel="",  # Dummy channel for discovery
+            channel="_discovery",  # Placeholder channel for discovery
             domain=args.domain,
             nats_servers=args.nats_servers,
             config_path=args.config,
@@ -748,6 +1023,13 @@ async def main() -> None:
             
         finally:
             await temp_cli.disconnect()
+    
+    # For system commands, use placeholder channel (not actually used)
+    # For other commands, channel is required at this point
+    if is_system_command and not channel:
+        # System commands query robot service, not channel-specific subjects
+        # Use placeholder to satisfy KrytenClient config validation
+        channel = "_system"
     
     # Initialize CLI with discovered or specified channel
     cli = KrytenCLI(
@@ -816,6 +1098,24 @@ async def main() -> None:
                 await cli.cmd_list_emotes()
             else:
                 parser.parse_args(["list", "--help"])
+        
+        elif args.command == "system":
+            if args.system_cmd == "stats":
+                await cli.cmd_system_stats(args.format)
+            elif args.system_cmd == "config":
+                await cli.cmd_system_config(args.format)
+            elif args.system_cmd == "ping":
+                await cli.cmd_system_ping()
+            elif args.system_cmd == "reload":
+                await cli.cmd_system_reload(args.reload_config_path)
+            elif args.system_cmd == "shutdown":
+                await cli.cmd_system_shutdown(
+                    delay=args.delay,
+                    reason=args.reason,
+                    confirm=not args.no_confirm
+                )
+            else:
+                parser.parse_args(["system", "--help"])
         
         else:
             print(f"Error: Unknown command '{args.command}'", file=sys.stderr)
