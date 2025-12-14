@@ -5,6 +5,30 @@ All notable changes to kryten-cli will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.3] - 2025-12-14
+
+### Changed
+
+- **Userstats Display Improvements**: Streamlined `userstats all` command output
+  - Removed redundant "Message Leaderboard" section (duplicated by "Top Active Users")
+  - Increased "Top Active Users" list from 10 to 20 users (default)
+  - Increased "Recent Media" history from 10 to 15 items (default)
+  - Kept Kudos and Emote leaderboards at 10 entries each
+
+## [2.3.2] - 2025-12-13
+
+### Changed
+
+- **Build system**: Migrated from setuptools to Poetry for consistent build/publish workflow
+- Now uses `poetry build` and `poetry publish` like other kryten packages
+
+## [2.3.1] - 2025-12-13
+
+### Changed
+
+- **Sync release**: Version sync with kryten ecosystem
+- **Updated kryten-py dependency** to >=0.9.4 (includes aiohttp as required dependency)
+
 ## [2.3.0] - 2025-12-09
 
 ### Added
