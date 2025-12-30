@@ -5,6 +5,20 @@ All notable changes to kryten-cli will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2025-12-15
+
+### Added
+
+- **System Services Command**: `kryten system services` shows registered microservices
+  - Lists all services with version, hostname, and heartbeat status
+  - Shows health and metrics endpoint URLs for each service
+  - Indicates active vs stale services (stale = no heartbeat in 90+ seconds)
+  - Supports `--format json` for machine-readable output
+
+### Changed
+
+- **Updated kryten-py dependency** to >=0.9.8 (includes `get_services()` method)
+
 ## [2.3.3] - 2025-12-14
 
 ### Changed

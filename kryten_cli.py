@@ -1187,6 +1187,62 @@ class KrytenCLI:
             print(f"{Colors.EMOJI_ERROR} Error pinging robot: {e}", file=sys.stderr)
             sys.exit(1)
     
+    async def cmd_system_services(self, format: str = "text") -> None:
+        """Display registered microservices."""
+        try:
+            data = await self.client.get_services()
+            
+            if format == "json":
+                print(json.dumps(data, indent=2))
+                return
+            
+            services = data.get("services", [])
+            count = data.get("count", 0)
+            active_count = data.get("active_count", 0)
+            
+            if not services:
+                print(f"\n{Colors.EMOJI_INFO} No microservices registered.")
+                print(f"{Colors.DIM}Services register when they start and send heartbeats.{Colors.RESET}")
+                return
+            
+            print(f"\n{Colors.BOLD}🔌 Registered Microservices{Colors.RESET}")
+            print(f"{Colors.DIM}{'=' * 80}{Colors.RESET}")
+            print(f"Total: {Colors.CYAN}{count}{Colors.RESET} | Active: {Colors.GREEN}{active_count}{Colors.RESET} | Stale: {Colors.RED}{count - active_count}{Colors.RESET}")
+            
+            for svc in services:
+                name = svc.get("name", "unknown")
+                version = svc.get("version", "?")
+                hostname = svc.get("hostname", "unknown")
+                is_stale = svc.get("is_stale", False)
+                seconds_since = svc.get("seconds_since_heartbeat", 0)
+                last_heartbeat = svc.get("last_heartbeat", "N/A")
+                health_url = svc.get("health_url")
+                metrics_url = svc.get("metrics_url")
+                
+                # Status indicator
+                if is_stale:
+                    status = f"{Colors.RED}✗ STALE{Colors.RESET}"
+                else:
+                    status = f"{Colors.GREEN}✓ Active{Colors.RESET}"
+                
+                print(f"\n  {Colors.BOLD}{name}{Colors.RESET} v{Colors.CYAN}{version}{Colors.RESET} [{status}]")
+                print(f"    {Colors.DIM}Hostname:{Colors.RESET}       {hostname}")
+                print(f"    {Colors.DIM}Last Heartbeat:{Colors.RESET} {last_heartbeat} ({seconds_since:.0f}s ago)")
+                
+                if health_url:
+                    print(f"    {Colors.DIM}Health:{Colors.RESET}         {Colors.BLUE}{health_url}{Colors.RESET}")
+                if metrics_url:
+                    print(f"    {Colors.DIM}Metrics:{Colors.RESET}        {Colors.BLUE}{metrics_url}{Colors.RESET}")
+                
+                if not health_url and not metrics_url:
+                    print(f"    {Colors.DIM}Endpoints:{Colors.RESET}      {Colors.YELLOW}Not configured{Colors.RESET}")
+            
+            print()  # Final newline
+            
+        except Exception as e:
+            print(f"Error retrieving services: {e}", file=sys.stderr)
+            sys.exit(1)
+    
     async def cmd_system_reload(self, config_path: Optional[str] = None) -> None:
         """Reload Kryten-Robot configuration."""
         try:
@@ -1503,6 +1559,14 @@ def create_parser() -> argparse.ArgumentParser:
     )
     
     system_subparsers.add_parser("ping", help="Check if robot is alive")
+    
+    services_parser = system_subparsers.add_parser("services", help="Show registered microservices")
+    services_parser.add_argument(
+        "--format",
+        choices=["text", "json"],
+        default="text",
+        help="Output format (default: text)"
+    )
     
     reload_parser = system_subparsers.add_parser("reload", help="Reload configuration")
     reload_parser.add_argument(
@@ -1851,6 +1915,8 @@ async def main() -> None:
                 await cli.cmd_system_config(args.format)
             elif args.system_cmd == "ping":
                 await cli.cmd_system_ping()
+            elif args.system_cmd == "services":
+                await cli.cmd_system_services(args.format)
             elif args.system_cmd == "reload":
                 await cli.cmd_system_reload(args.reload_config_path)
             elif args.system_cmd == "shutdown":
