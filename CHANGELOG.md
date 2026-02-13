@@ -5,6 +5,27 @@ All notable changes to kryten-cli will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.0] - 2026-02-13
+
+### Added
+
+- **Dropsugar URL Support**: `playlist add` and `playlist addnext` now automatically convert dropsugar.co/io view URLs to manifest URLs
+  - Accepts URLs in either view format (`https://www.dropsugar.co/view?m=Q2PRZmXxm`) or manifest format
+  - Automatically converts view URLs to CyTube-compatible manifest URLs
+  - Works with both dropsugar.co and dropsugar.io domains
+
+- **Batch Playlist Operations**: `playlist add` and `playlist addnext` now accept text files containing multiple URLs
+  - Provide a file path with one URL per line
+  - `playlist add` adds videos in file order to the end of the playlist
+  - `playlist addnext` inserts videos in correct order (automatically reverses list for proper playback sequence)
+  - Displays progress for each video added
+
+### Changed
+
+- **Version Management**: Consolidated version definition to pyproject.toml as single source of truth
+  - setup.py now reads version dynamically from pyproject.toml
+  - Ensures version consistency across the project
+
 ## [2.5.0] - 2025-12-15
 
 ### Added

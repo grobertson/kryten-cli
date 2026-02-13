@@ -245,6 +245,22 @@ class KrytenCLI:
         if self.client:
             await self.client.disconnect()
     
+    def _convert_dropsugar_url(self, url: str) -> str:
+        """Convert dropsugar.co/io view URL to manifest URL.
+        
+        Args:
+            url: URL to convert
+            
+        Returns:
+            Manifest URL if it's a dropsugar view URL, otherwise original URL
+        """
+        # Match dropsugar.co or dropsugar.io view URLs
+        dropsugar_match = re.search(r'https?://(?:www\.)?dropsugar\.(?:co|io)/view\?m=([a-zA-Z0-9_-]+)', url)
+        if dropsugar_match:
+            media_id = dropsugar_match.group(1)
+            return f"https://www.dropsugar.co/api/v1/media/cytube/{media_id}.json?format=json"
+        return url
+    
     def _parse_media_url(self, url: str) -> tuple[str, str]:
         """Parse media URL to extract type and ID.
         
@@ -254,6 +270,9 @@ class KrytenCLI:
         Returns:
             Tuple of (media_type, media_id)
         """
+        # Convert dropsugar view URLs to manifest URLs
+        url = self._convert_dropsugar_url(url)
+        
         # YouTube patterns
         yt_patterns = [
             r'(?:youtube\.com/watch\?v=|youtu\.be/)([a-zA-Z0-9_-]{11})',
@@ -309,29 +328,61 @@ class KrytenCLI:
     # Playlist Commands
     # ========================================================================
     
-    async def cmd_playlist_add(self, url: str) -> None:
-        """Add video to end of playlist.
+    async def cmd_playlist_add(self, url_or_file: str) -> None:
+        """Add video(s) to end of playlist.
         
         Args:
-            url: Video URL or ID.
+            url_or_file: Video URL/ID or path to text file containing URLs (one per line).
         """
-        media_type, media_id = self._parse_media_url(url)
-        await self.client.add_media(
-            self.channel, media_type, media_id, position="end", domain=self.domain
-        )
-        print(f"{Colors.EMOJI_SUCCESS} {Colors.EMOJI_PLAYLIST} Added {Colors.CYAN}{media_type}:{media_id}{Colors.RESET} to end of playlist")
+        # Check if it's a file path
+        if os.path.exists(url_or_file) and os.path.isfile(url_or_file):
+            with open(url_or_file, 'r', encoding='utf-8') as f:
+                urls = [line.strip() for line in f if line.strip()]
+            
+            print(f"{Colors.EMOJI_SUCCESS} {Colors.EMOJI_PLAYLIST} Adding {len(urls)} video(s) from file...")
+            for url in urls:
+                media_type, media_id = self._parse_media_url(url)
+                await self.client.add_media(
+                    self.channel, media_type, media_id, position="end", domain=self.domain
+                )
+                print(f"  {Colors.GREEN}✓{Colors.RESET} Added {Colors.CYAN}{media_type}:{media_id}{Colors.RESET}")
+        else:
+            # Single URL
+            media_type, media_id = self._parse_media_url(url_or_file)
+            await self.client.add_media(
+                self.channel, media_type, media_id, position="end", domain=self.domain
+            )
+            print(f"{Colors.EMOJI_SUCCESS} {Colors.EMOJI_PLAYLIST} Added {Colors.CYAN}{media_type}:{media_id}{Colors.RESET} to end of playlist")
     
-    async def cmd_playlist_addnext(self, url: str) -> None:
-        """Add video to play next.
+    async def cmd_playlist_addnext(self, url_or_file: str) -> None:
+        """Add video(s) to play next.
         
         Args:
-            url: Video URL or ID.
+            url_or_file: Video URL/ID or path to text file containing URLs (one per line).
+                        For files, URLs are inserted in reverse order so they play in file order.
         """
-        media_type, media_id = self._parse_media_url(url)
-        await self.client.add_media(
-            self.channel, media_type, media_id, position="next", domain=self.domain
-        )
-        print(f"{Colors.EMOJI_SUCCESS} {Colors.EMOJI_PLAYLIST} Added {Colors.CYAN}{media_type}:{media_id}{Colors.RESET} to play {Colors.GREEN}next{Colors.RESET}")
+        # Check if it's a file path
+        if os.path.exists(url_or_file) and os.path.isfile(url_or_file):
+            with open(url_or_file, 'r', encoding='utf-8') as f:
+                urls = [line.strip() for line in f if line.strip()]
+            
+            # Reverse the list so they end up in the correct order when inserted as "next"
+            urls.reverse()
+            
+            print(f"{Colors.EMOJI_SUCCESS} {Colors.EMOJI_PLAYLIST} Adding {len(urls)} video(s) from file to play next...")
+            for url in urls:
+                media_type, media_id = self._parse_media_url(url)
+                await self.client.add_media(
+                    self.channel, media_type, media_id, position="next", domain=self.domain
+                )
+                print(f"  {Colors.GREEN}✓{Colors.RESET} Added {Colors.CYAN}{media_type}:{media_id}{Colors.RESET}")
+        else:
+            # Single URL
+            media_type, media_id = self._parse_media_url(url_or_file)
+            await self.client.add_media(
+                self.channel, media_type, media_id, position="next", domain=self.domain
+            )
+            print(f"{Colors.EMOJI_SUCCESS} {Colors.EMOJI_PLAYLIST} Added {Colors.CYAN}{media_type}:{media_id}{Colors.RESET} to play {Colors.GREEN}next{Colors.RESET}")
     
     async def cmd_playlist_del(self, uid: str) -> None:
         """Delete video from playlist.
@@ -1489,11 +1540,11 @@ def create_parser() -> argparse.ArgumentParser:
     playlist_parser = subparsers.add_parser("playlist", help="Playlist management")
     playlist_subparsers = playlist_parser.add_subparsers(dest="playlist_cmd")
     
-    add_parser = playlist_subparsers.add_parser("add", help="Add video to end")
-    add_parser.add_argument("url", help="Video URL or ID")
+    add_parser = playlist_subparsers.add_parser("add", help="Add video(s) to end")
+    add_parser.add_argument("url", help="Video URL/ID or path to text file with URLs")
     
-    addnext_parser = playlist_subparsers.add_parser("addnext", help="Add video to play next")
-    addnext_parser.add_argument("url", help="Video URL or ID")
+    addnext_parser = playlist_subparsers.add_parser("addnext", help="Add video(s) to play next")
+    addnext_parser.add_argument("url", help="Video URL/ID or path to text file with URLs")
     
     del_parser = playlist_subparsers.add_parser("del", help="Delete video")
     del_parser.add_argument("uid", help="Video UID or position")
