@@ -1,6 +1,6 @@
 {
   "nats": {
-    "servers": ["nats://192.168.0.105:4222"],
+    "servers": ["nats://localhost:4222"],
     "user": null,
     "password": null,
     "token": null,

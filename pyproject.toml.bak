@@ -1,0 +1,59 @@
+[tool.poetry]
+name = "kryten-cli"
+version = "2.5.1"
+description = "Command-line client for CyTube via kryten-py library"
+authors = ["Kryten Robot Team <kryten@example.com>"]
+readme = "README.md"
+license = "MIT"
+homepage = "https://github.com/grobertson/kryten-cli"
+repository = "https://github.com/grobertson/kryten-cli"
+documentation = "https://github.com/grobertson/kryten-cli/blob/main/README.md"
+keywords = ["cytube", "nats", "cli", "command-line", "microservices", "bot"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Communications :: Chat",
+    "Topic :: Utilities",
+]
+packages = [{include = "kryten_cli.py"}]
+
+[tool.poetry.dependencies]
+python = ">=3.10"
+kryten-py = ">=0.9.8"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.1.0"
+mypy = "^1.7.0"
+
+[tool.poetry.scripts]
+kryten = "kryten_cli:run"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = false
+warn_unused_configs = true
+disallow_untyped_defs = false
+# The CLI uses Optional[KrytenClient] for the client field which creates many 
+# union-attr warnings. The code has proper runtime checks but mypy can't infer them.
+disable_error_code = ["union-attr"]
+
+[[tool.mypy.overrides]]
+module = "kryten.*"
+ignore_missing_imports = true
