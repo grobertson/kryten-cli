@@ -5,6 +5,18 @@ All notable changes to kryten-cli will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.3] - 2026-03-14
+
+### Fixed
+
+- **Command Surface Restore**: Restored missing `moderator` and `userstats` command sections
+  - Re-added argparse command trees for `moderator`/`mod` and `userstats`
+  - Re-added command routing and handlers in `kryten_cli.py`
+
+- **Version Single Source of Truth**: Version now consistently resolves from `pyproject.toml`
+  - `setup.py` no longer hardcodes a package version
+  - `__init__.py` no longer hardcodes `__version__`
+
 ## [2.6.2] - 2026-03-14
 
 ### Changed

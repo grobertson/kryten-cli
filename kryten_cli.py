@@ -475,6 +475,280 @@ class KrytenCLI:
         """Vote to skip current video."""
         await self.client.voteskip(self.channel, domain=self.domain)
         print(f"✓ Voted to skip in {self.channel}")
+
+    # ========================================================================
+    # Persistent Moderation Commands
+    # ========================================================================
+
+    async def _moderator_request(self, command: str, **kwargs) -> dict:
+        """Send a request to the kryten-moderator service."""
+        request = {
+            "service": "moderator",
+            "command": command,
+            **kwargs,
+        }
+        try:
+            return await self.client.nats_request(
+                "kryten.moderator.command",
+                request,
+                timeout=5.0,
+            )
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    async def cmd_moderator_ban(self, username: str, reason: Optional[str] = None) -> None:
+        """Add user to persistent ban list (kicks on join)."""
+        response = await self._moderator_request(
+            "entry.add",
+            username=username,
+            action="ban",
+            reason=reason,
+            moderator="cli",
+        )
+        if response.get("success"):
+            print(f"✓ Added ban for {username}")
+        else:
+            print(f"Error: {response.get('error', 'Unknown error')}", file=sys.stderr)
+            sys.exit(1)
+
+    async def cmd_moderator_unban(self, username: str) -> None:
+        """Remove user from persistent ban list."""
+        response = await self._moderator_request("entry.remove", username=username)
+        if response.get("success"):
+            print(f"✓ Removed ban for {username}")
+        else:
+            print(f"Error: {response.get('error', 'Unknown error')}", file=sys.stderr)
+            sys.exit(1)
+
+    async def cmd_moderator_smute(self, username: str, reason: Optional[str] = None) -> None:
+        """Shadow mute a user (not notified)."""
+        response = await self._moderator_request(
+            "entry.add",
+            username=username,
+            action="smute",
+            reason=reason,
+            moderator="cli",
+        )
+        if response.get("success"):
+            print(f"✓ Added shadow mute for {username}")
+        else:
+            print(f"Error: {response.get('error', 'Unknown error')}", file=sys.stderr)
+            sys.exit(1)
+
+    async def cmd_moderator_unsmute(self, username: str) -> None:
+        """Remove shadow mute from user."""
+        response = await self._moderator_request("entry.remove", username=username)
+        if response.get("success"):
+            print(f"✓ Removed shadow mute for {username}")
+        else:
+            print(f"Error: {response.get('error', 'Unknown error')}", file=sys.stderr)
+            sys.exit(1)
+
+    async def cmd_moderator_mute(self, username: str, reason: Optional[str] = None) -> None:
+        """Visible mute a user (notified)."""
+        response = await self._moderator_request(
+            "entry.add",
+            username=username,
+            action="mute",
+            reason=reason,
+            moderator="cli",
+        )
+        if response.get("success"):
+            print(f"✓ Added visible mute for {username}")
+        else:
+            print(f"Error: {response.get('error', 'Unknown error')}", file=sys.stderr)
+            sys.exit(1)
+
+    async def cmd_moderator_unmute(self, username: str) -> None:
+        """Remove visible mute from user."""
+        response = await self._moderator_request("entry.remove", username=username)
+        if response.get("success"):
+            print(f"✓ Removed visible mute for {username}")
+        else:
+            print(f"Error: {response.get('error', 'Unknown error')}", file=sys.stderr)
+            sys.exit(1)
+
+    async def cmd_moderator_list(self, filter_action: Optional[str] = None, format: str = "table") -> None:
+        """List moderated users."""
+        response = await self._moderator_request("entry.list", filter=filter_action)
+        if not response.get("success"):
+            print(f"Error: {response.get('error', 'Unknown error')}", file=sys.stderr)
+            sys.exit(1)
+
+        data = response.get("data", {})
+        entries = data.get("entries", [])
+
+        if format == "json":
+            print(json.dumps(data, indent=2))
+            return
+
+        if not entries:
+            print("No moderation entries found.")
+            return
+
+        print(f"\nModeration List ({len(entries)} entries)")
+        print("-" * 80)
+        print(f"{'Username':<20} {'Action':<10} {'Reason':<28} {'Moderator':<15}")
+        print("-" * 80)
+        for entry in entries:
+            reason = (entry.get("reason") or "")[:28]
+            moderator = (entry.get("moderator") or "")[:15]
+            print(f"{entry.get('username', ''):<20} {entry.get('action', ''):<10} {reason:<28} {moderator:<15}")
+
+    async def cmd_moderator_check(self, username: str, format: str = "text") -> None:
+        """Check moderation status for one user."""
+        response = await self._moderator_request("entry.get", username=username)
+        if not response.get("success"):
+            print(f"Error: {response.get('error', 'Unknown error')}", file=sys.stderr)
+            sys.exit(1)
+
+        data = response.get("data", {})
+        if format == "json":
+            print(json.dumps(data, indent=2))
+            return
+
+        entry = data.get("entry")
+        if not entry:
+            print(f"{username} is not currently moderated.")
+            return
+
+        print(f"\nModeration status for {username}")
+        print("-" * 40)
+        print(f"Action:    {entry.get('action', '')}")
+        print(f"Reason:    {entry.get('reason') or '(none)'}")
+        print(f"Moderator: {entry.get('moderator', '')}")
+        print(f"Timestamp: {entry.get('timestamp', '')}")
+
+    async def cmd_moderator_patterns_list(self, format: str = "table") -> None:
+        """List all banned username patterns."""
+        response = await self._moderator_request("pattern.list")
+        if not response.get("success"):
+            print(f"Error: {response.get('error', 'Unknown error')}", file=sys.stderr)
+            sys.exit(1)
+
+        data = response.get("data", {})
+        patterns = data.get("patterns", [])
+        if format == "json":
+            print(json.dumps(data, indent=2))
+            return
+
+        if not patterns:
+            print("No patterns configured.")
+            return
+
+        print(f"\nBanned Username Patterns ({len(patterns)} patterns)")
+        print("-" * 90)
+        print(f"{'Pattern':<30} {'Type':<10} {'Action':<10} {'Description':<35}")
+        print("-" * 90)
+        for p in patterns:
+            ptype = "regex" if p.get("is_regex") else "substring"
+            desc = (p.get("description") or "")[:35]
+            print(f"{p.get('pattern', '')[:30]:<30} {ptype:<10} {p.get('action', ''):<10} {desc:<35}")
+
+    async def cmd_moderator_patterns_add(
+        self,
+        pattern: str,
+        is_regex: bool = False,
+        action: str = "ban",
+        description: Optional[str] = None,
+    ) -> None:
+        """Add a banned username pattern."""
+        response = await self._moderator_request(
+            "pattern.add",
+            pattern=pattern,
+            is_regex=is_regex,
+            action=action,
+            added_by="cli",
+            description=description,
+        )
+        if response.get("success"):
+            print(f"✓ Added pattern: {pattern}")
+        else:
+            print(f"Error: {response.get('error', 'Unknown error')}", file=sys.stderr)
+            sys.exit(1)
+
+    async def cmd_moderator_patterns_remove(self, pattern: str) -> None:
+        """Remove a banned username pattern."""
+        response = await self._moderator_request("pattern.remove", pattern=pattern)
+        if response.get("success"):
+            print(f"✓ Removed pattern: {pattern}")
+        else:
+            print(f"Error: {response.get('error', 'Unknown error')}", file=sys.stderr)
+            sys.exit(1)
+
+    # ========================================================================
+    # Userstats Commands
+    # ========================================================================
+
+    async def cmd_userstats_all(
+        self,
+        format: str = "text",
+        top_users: int = 20,
+        media_history: int = 15,
+        leaderboards: int = 10,
+    ) -> None:
+        """Fetch and display channel stats from the userstats service."""
+        try:
+            request = {
+                "service": "userstats",
+                "command": "channel.all_stats",
+                "limits": {
+                    "top_users": top_users,
+                    "media_history": media_history,
+                    "leaderboards": leaderboards,
+                },
+            }
+            response = await self.client.nats_request(
+                "kryten.userstats.command",
+                request,
+                timeout=10.0,
+            )
+            if not response.get("success"):
+                print(f"Error: {response.get('error', 'Unknown error')}", file=sys.stderr)
+                sys.exit(1)
+
+            data = response.get("data", {})
+            if format == "json":
+                print(json.dumps(data, indent=2))
+                return
+
+            print("\nUserstats Channel Report")
+            print("=" * 80)
+
+            system = data.get("system", {})
+            health = system.get("health", {})
+            stats = system.get("stats", {})
+            print("\nSystem")
+            print(f"  Service:   {health.get('service', 'N/A')}")
+            print(f"  Status:    {health.get('status', 'N/A')}")
+            print(f"  Uptime:    {health.get('uptime_seconds', 0) / 3600:.2f} hours")
+            print(f"  Events:    {stats.get('events_processed', 0):,}")
+            print(f"  Commands:  {stats.get('commands_processed', 0):,}")
+
+            leaderboards_data = data.get("leaderboards", {})
+            print("\nKudos Leaderboard")
+            for i, entry in enumerate(leaderboards_data.get("kudos", []), 1):
+                print(f"  {i:2}. {entry.get('username', ''):20} {entry.get('count', 0):,} kudos")
+
+            print("\nEmote Leaderboard")
+            for i, entry in enumerate(leaderboards_data.get("emotes", []), 1):
+                print(f"  {i:2}. {entry.get('emote', ''):20} {entry.get('count', 0):,} uses")
+
+            channel = data.get("channel", {})
+            print("\nTop Active Users")
+            for i, entry in enumerate(channel.get("top_users", []), 1):
+                print(f"  {i:2}. {entry.get('username', ''):20} {entry.get('count', 0):,} messages")
+
+            print("\nRecent Media")
+            for i, entry in enumerate(channel.get("media_history", []), 1):
+                print(f"  {i:2}. [{entry.get('media_type', '?')}] {entry.get('media_title', 'Unknown')}")
+
+        except TimeoutError:
+            print("Error: Timeout waiting for userstats service", file=sys.stderr)
+            sys.exit(1)
+        except Exception as e:
+            print(f"Error fetching userstats: {e}", file=sys.stderr)
+            sys.exit(1)
     
     # ========================================================================
     # List Commands
@@ -721,6 +995,64 @@ def create_parser() -> argparse.ArgumentParser:
     list_subparsers.add_parser("queue", help="Show current playlist")
     list_subparsers.add_parser("users", help="Show online users")
     list_subparsers.add_parser("emotes", help="Show channel emotes")
+
+    # Userstats commands
+    userstats_parser = subparsers.add_parser("userstats", help="User statistics commands")
+    userstats_subparsers = userstats_parser.add_subparsers(dest="userstats_cmd")
+
+    all_stats_parser = userstats_subparsers.add_parser("all", help="Fetch all channel statistics")
+    all_stats_parser.add_argument("--format", choices=["text", "json"], default="text", help="Output format")
+    all_stats_parser.add_argument("--top-users", type=int, default=20, help="Top users to include")
+    all_stats_parser.add_argument("--media-history", type=int, default=15, help="Recent media entries to include")
+    all_stats_parser.add_argument("--leaderboards", type=int, default=10, help="Leaderboard entries to include")
+
+    # Persistent moderator commands
+    moderator_parser = subparsers.add_parser("moderator", aliases=["mod"], help="Persistent moderation list commands")
+    moderator_sub = moderator_parser.add_subparsers(dest="moderator_cmd")
+
+    mod_ban = moderator_sub.add_parser("ban", help="Add user to persistent ban list")
+    mod_ban.add_argument("username", help="Username to ban")
+    mod_ban.add_argument("reason", nargs="?", help="Reason (optional)")
+
+    mod_unban = moderator_sub.add_parser("unban", help="Remove user from persistent ban list")
+    mod_unban.add_argument("username", help="Username to unban")
+
+    mod_smute = moderator_sub.add_parser("smute", help="Shadow mute user")
+    mod_smute.add_argument("username", help="Username to shadow mute")
+    mod_smute.add_argument("reason", nargs="?", help="Reason (optional)")
+
+    mod_unsmute = moderator_sub.add_parser("unsmute", help="Remove shadow mute from user")
+    mod_unsmute.add_argument("username", help="Username to unshadow mute")
+
+    mod_mute = moderator_sub.add_parser("mute", help="Visible mute user")
+    mod_mute.add_argument("username", help="Username to mute")
+    mod_mute.add_argument("reason", nargs="?", help="Reason (optional)")
+
+    mod_unmute = moderator_sub.add_parser("unmute", help="Remove visible mute from user")
+    mod_unmute.add_argument("username", help="Username to unmute")
+
+    mod_list = moderator_sub.add_parser("list", help="List moderated users")
+    mod_list.add_argument("--filter", choices=["ban", "smute", "mute"], help="Filter by action")
+    mod_list.add_argument("--format", choices=["table", "json"], default="table", help="Output format")
+
+    mod_check = moderator_sub.add_parser("check", help="Check moderation status for a user")
+    mod_check.add_argument("username", help="Username to check")
+    mod_check.add_argument("--format", choices=["text", "json"], default="text", help="Output format")
+
+    mod_patterns = moderator_sub.add_parser("patterns", help="Manage banned username patterns")
+    mod_patterns_sub = mod_patterns.add_subparsers(dest="patterns_cmd")
+
+    patterns_list = mod_patterns_sub.add_parser("list", help="List patterns")
+    patterns_list.add_argument("--format", choices=["table", "json"], default="table", help="Output format")
+
+    patterns_add = mod_patterns_sub.add_parser("add", help="Add pattern")
+    patterns_add.add_argument("pattern", help="Pattern to add")
+    patterns_add.add_argument("--regex", action="store_true", help="Treat pattern as regex")
+    patterns_add.add_argument("--action", choices=["ban", "smute", "mute"], default="ban", help="Action on match")
+    patterns_add.add_argument("--description", help="Optional description")
+
+    patterns_remove = mod_patterns_sub.add_parser("remove", help="Remove pattern")
+    patterns_remove.add_argument("pattern", help="Pattern to remove")
     
     return parser
 
@@ -853,6 +1185,51 @@ async def main() -> None:
                 await cli.cmd_list_emotes()
             else:
                 parser.parse_args(["list", "--help"])
+
+        elif args.command == "userstats":
+            if args.userstats_cmd == "all":
+                await cli.cmd_userstats_all(
+                    format=args.format,
+                    top_users=args.top_users,
+                    media_history=args.media_history,
+                    leaderboards=args.leaderboards,
+                )
+            else:
+                parser.parse_args(["userstats", "--help"])
+
+        elif args.command in ("moderator", "mod"):
+            if args.moderator_cmd == "ban":
+                await cli.cmd_moderator_ban(args.username, args.reason)
+            elif args.moderator_cmd == "unban":
+                await cli.cmd_moderator_unban(args.username)
+            elif args.moderator_cmd == "smute":
+                await cli.cmd_moderator_smute(args.username, args.reason)
+            elif args.moderator_cmd == "unsmute":
+                await cli.cmd_moderator_unsmute(args.username)
+            elif args.moderator_cmd == "mute":
+                await cli.cmd_moderator_mute(args.username, args.reason)
+            elif args.moderator_cmd == "unmute":
+                await cli.cmd_moderator_unmute(args.username)
+            elif args.moderator_cmd == "list":
+                await cli.cmd_moderator_list(filter_action=args.filter, format=args.format)
+            elif args.moderator_cmd == "check":
+                await cli.cmd_moderator_check(args.username, format=args.format)
+            elif args.moderator_cmd == "patterns":
+                if args.patterns_cmd == "list":
+                    await cli.cmd_moderator_patterns_list(format=args.format)
+                elif args.patterns_cmd == "add":
+                    await cli.cmd_moderator_patterns_add(
+                        pattern=args.pattern,
+                        is_regex=args.regex,
+                        action=args.action,
+                        description=args.description,
+                    )
+                elif args.patterns_cmd == "remove":
+                    await cli.cmd_moderator_patterns_remove(args.pattern)
+                else:
+                    parser.parse_args(["moderator", "patterns", "--help"])
+            else:
+                parser.parse_args(["moderator", "--help"])
         
         else:
             print(f"Error: Unknown command '{args.command}'", file=sys.stderr)

@@ -2,6 +2,19 @@
 
 from setuptools import setup, find_packages
 from pathlib import Path
+import re
+
+
+def _read_version_from_pyproject() -> str:
+    """Read project version from pyproject.toml as the single source of truth."""
+    pyproject_path = Path(__file__).parent / "pyproject.toml"
+    content = pyproject_path.read_text(encoding="utf-8")
+
+    match = re.search(r'^version\s*=\s*"([^"]+)"', content, re.MULTILINE)
+    if not match:
+        raise RuntimeError("Unable to find version in pyproject.toml")
+
+    return match.group(1)
 
 # Read the README file
 this_directory = Path(__file__).parent
@@ -9,7 +22,7 @@ long_description = (this_directory / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="kryten-cli",
-    version="2.3.0",
+    version=_read_version_from_pyproject(),
     description="Command-line client for CyTube via kryten-py library",
     long_description=long_description,
     long_description_content_type="text/markdown",
