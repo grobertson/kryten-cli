@@ -80,6 +80,29 @@ from typing import Optional
 from kryten import KrytenClient
 
 
+def _read_project_version() -> str:
+    """Read package version from pyproject.toml."""
+    try:
+        pyproject_path = Path(__file__).parent / "pyproject.toml"
+        content = pyproject_path.read_text(encoding="utf-8")
+        match = re.search(r'^version\s*=\s*"([^"]+)"', content, re.MULTILINE)
+        if match:
+            return match.group(1)
+    except Exception:
+        pass
+    return "unknown"
+
+
+def _print_about() -> None:
+    """Print project information and credits."""
+    version = _read_project_version()
+    print("kryten-cli")
+    print("Version: " + version)
+    print("Credits: Kryten Robot Team and contributors")
+    print("Project: https://github.com/grobertson/kryten-cli")
+    print("Thank you to the people who make Cytu.be's Channel-Z excellent.")
+
+
 class KrytenCLI:
     """Command-line interface for Kryten CyTube commands."""
     
@@ -942,6 +965,9 @@ def create_parser() -> argparse.ArgumentParser:
     pm_parser = subparsers.add_parser("pm", help="Send a private message")
     pm_parser.add_argument("username", help="Target username")
     pm_parser.add_argument("message", help="Message text")
+
+    # Metadata command
+    subparsers.add_parser("about", help="Show project information and credits")
     
     # Playlist commands
     playlist_parser = subparsers.add_parser("playlist", help="Playlist management")
@@ -1065,6 +1091,10 @@ async def main() -> None:
     if not args.command:
         parser.print_help()
         sys.exit(1)
+
+    if args.command == "about":
+        _print_about()
+        return
     
     # Auto-discover channel if not specified
     channel = args.channel
@@ -1136,6 +1166,9 @@ async def main() -> None:
         
         elif args.command == "pm":
             await cli.cmd_pm(args.username, args.message)
+
+        elif args.command == "about":
+            _print_about()
         
         elif args.command == "playlist":
             if args.playlist_cmd == "add":
