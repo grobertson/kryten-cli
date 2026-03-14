@@ -5,6 +5,23 @@ All notable changes to kryten-cli will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.0] - 2026-03-14
+
+### Removed
+
+- **Legacy Compatibility Paths**: Removed pre-v3 compatibility behaviors from the CLI
+  - Legacy `cytube` config conversion is no longer supported
+  - Implicit channel auto-discovery was removed; `--channel` is now required for network commands
+  - Deprecated `mod` alias was removed in favor of `moderator`
+
+### Fixed
+
+- **Playlist File Path Handling**: Restored the missing `os` import used by file-based playlist commands
+  - Fixes `playlist add <file>` and `playlist addnext <file>` under `uv run`
+
+- **Repository Artifact Noise**: Removed tracked local environment and cache artifacts from version control
+  - Stops `venv/`, `venv_clean/`, and `__pycache__/` files from polluting the working tree
+
 ## [2.6.4] - 2026-03-14
 
 ### Added

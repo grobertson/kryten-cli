@@ -23,9 +23,14 @@ MANIFEST
 
 # Virtual Environment
 venv/
+venv_clean/
 ENV/
 env/
 .venv
+.venv-1
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
 
 # IDEs
 .vscode/
@@ -40,3 +45,4 @@ Thumbs.db
 
 # Config (may contain secrets)
 config.json
+uv.lock
