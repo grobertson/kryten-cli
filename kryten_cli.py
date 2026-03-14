@@ -212,6 +212,15 @@ class KrytenCLI:
         
         # Default: custom URL (for direct video files, custom embeds, etc.)
         return ("cu", url)
+
+    def _read_playlist_urls_from_file(self, file_path: str) -> list[str]:
+        """Read playlist URLs from a file, skipping blank and comment lines."""
+        with open(file_path, 'r', encoding='utf-8') as f:
+            return [
+                line.strip()
+                for line in f
+                if line.strip() and not line.lstrip().startswith('#')
+            ]
     
     # ========================================================================
     # Chat Commands
@@ -240,29 +249,57 @@ class KrytenCLI:
     # Playlist Commands
     # ========================================================================
     
-    async def cmd_playlist_add(self, url: str) -> None:
-        """Add video to end of playlist.
+    async def cmd_playlist_add(self, url_or_file: str) -> None:
+        """Add video(s) to end of playlist.
         
         Args:
-            url: Video URL or ID.
+            url_or_file: Video URL/ID or path to text file containing URLs (one per line).
+                        Lines starting with # are ignored as comments.
         """
-        media_type, media_id = self._parse_media_url(url)
-        await self.client.add_media(
-            self.channel, media_type, media_id, position="end", domain=self.domain
-        )
-        print(f"✓ Added {media_type}:{media_id} to end of playlist in {self.channel}")
+        if os.path.exists(url_or_file) and os.path.isfile(url_or_file):
+            urls = self._read_playlist_urls_from_file(url_or_file)
+            print(f"✓ Adding {len(urls)} video(s) from file to end of playlist in {self.channel}")
+            for i, url in enumerate(urls):
+                media_type, media_id = self._parse_media_url(url)
+                await self.client.add_media(
+                    self.channel, media_type, media_id, position="end", domain=self.domain
+                )
+                print(f"  ✓ Added {media_type}:{media_id}")
+                if i < len(urls) - 1:
+                    await asyncio.sleep(1)
+        else:
+            media_type, media_id = self._parse_media_url(url_or_file)
+            await self.client.add_media(
+                self.channel, media_type, media_id, position="end", domain=self.domain
+            )
+            print(f"✓ Added {media_type}:{media_id} to end of playlist in {self.channel}")
     
-    async def cmd_playlist_addnext(self, url: str) -> None:
-        """Add video to play next.
+    async def cmd_playlist_addnext(self, url_or_file: str) -> None:
+        """Add video(s) to play next.
         
         Args:
-            url: Video URL or ID.
+            url_or_file: Video URL/ID or path to text file containing URLs (one per line).
+                        Lines starting with # are ignored as comments.
+                        For files, URLs are inserted in reverse order so they play in file order.
         """
-        media_type, media_id = self._parse_media_url(url)
-        await self.client.add_media(
-            self.channel, media_type, media_id, position="next", domain=self.domain
-        )
-        print(f"✓ Added {media_type}:{media_id} to play next in {self.channel}")
+        if os.path.exists(url_or_file) and os.path.isfile(url_or_file):
+            urls = self._read_playlist_urls_from_file(url_or_file)
+            urls.reverse()
+            print(f"✓ Adding {len(urls)} video(s) from file to play next in {self.channel}")
+            for i, url in enumerate(urls):
+                media_type, media_id = self._parse_media_url(url)
+                await self.client.add_media(
+                    self.channel, media_type, media_id, position="next", domain=self.domain
+                )
+                print(f"  ✓ Added {media_type}:{media_id}")
+                if i < len(urls) - 1:
+                    await asyncio.sleep(1)
+        else:
+            media_type, media_id = self._parse_media_url(url_or_file)
+            await self.client.add_media(
+                self.channel, media_type, media_id, position="next", domain=self.domain
+            )
+            print(f"✓ Added {media_type}:{media_id} to play next in {self.channel}")
     
     async def cmd_playlist_del(self, uid: str) -> None:
         """Delete video from playlist.
@@ -275,7 +312,7 @@ class KrytenCLI:
         # If uid looks like a position (small number), fetch playlist and map position to UID
         # CyTube UIDs are typically 4+ digits, positions are 1-based small numbers
         if uid_int < 1000:  # Assume this is a position, not a UID
-            bucket_name = f"cytube_{self.channel.lower()}_playlist"
+            bucket_name = f"kryten_{self.channel}_playlist"
             try:
                 playlist = await self.client.kv_get(bucket_name, "items", default=None, parse_json=True)
                 
@@ -318,7 +355,7 @@ class KrytenCLI:
         after_int = int(after)
         
         # Map positions to UIDs if needed (same logic as delete)
-        bucket_name = f"cytube_{self.channel.lower()}_playlist"
+        bucket_name = f"kryten_{self.channel}_playlist"
         
         try:
             playlist = await self.client.kv_get(bucket_name, "items", default=None, parse_json=True)

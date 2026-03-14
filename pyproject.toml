@@ -1,38 +1,46 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = [ "hatchling",]
+build-backend = "hatchling.build"
 
 [project]
 name = "kryten-cli"
-version = "2.3.0"
+version = "2.6.2"
 description = "Command-line client for CyTube via kryten-py library"
 readme = "README.md"
-license = {text = "MIT"}
-authors = [
-    {name = "Kryten Robot Team", email = "kryten@example.com"}
-]
-keywords = ["cytube", "nats", "cli", "command-line", "microservices", "bot"]
-classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Topic :: Communications :: Chat",
-    "Topic :: Utilities",
-]
 requires-python = ">=3.10"
-dependencies = [
-    "kryten-py>=0.5.8",
-]
+keywords = [ "cytube", "nats", "cli", "command-line", "microservices", "bot",]
+classifiers = [ "Development Status :: 4 - Beta", "Intended Audience :: Developers", "License :: OSI Approved :: MIT License", "Programming Language :: Python :: 3", "Programming Language :: Python :: 3.10", "Programming Language :: Python :: 3.11", "Programming Language :: Python :: 3.12", "Topic :: Communications :: Chat", "Topic :: Utilities",]
+dependencies = [ "kryten-py>=0.9.8",]
+[[project.authors]]
+name = "Kryten Robot Team"
+email = "kryten@example.com"
 
-[project.urls]
-Homepage = "https://github.com/grobertson/kryten-cli"
-"Bug Tracker" = "https://github.com/grobertson/kryten-cli/issues"
-"Source Code" = "https://github.com/grobertson/kryten-cli"
-Documentation = "https://github.com/grobertson/kryten-cli/blob/main/README.md"
+[dependency-groups]
+dev = [ "ruff>=0.1.0,<0.2.0", "mypy>=1.7.0,<2.0.0",]
+
+[project.license]
+text = "MIT"
 
 [project.scripts]
 kryten = "kryten_cli:run"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = false
+warn_unused_configs = true
+disallow_untyped_defs = false
+disable_error_code = [ "union-attr",]
+[[tool.mypy.overrides]]
+module = "kryten.*"
+ignore_missing_imports = true
+
+[tool.ruff.lint]
+select = [ "E", "F", "W",]
+ignore = [ "E501",]
+
+[tool.hatch.build.targets.wheel]
+packages = [ "kryten_cli.py",]

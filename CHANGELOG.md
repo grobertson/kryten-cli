@@ -5,6 +5,87 @@ All notable changes to kryten-cli will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.2] - 2026-03-14
+
+### Changed
+
+- **Playlist Batch Pacing**: Restored a 1-second delay between file-based media adds
+  - Applies to `playlist add <file>` and `playlist addnext <file>`
+  - Helps prevent command bursts from overwhelming downstream services
+
+- **Packaging Metadata Alignment**: Restored the richer 2.6.x package metadata layout in `pyproject.toml`
+  - Uses Hatchling build backend
+  - Restores `kryten-py>=0.9.8` dependency floor
+  - Restores Ruff/Mypy tool configuration and dev dependency group
+
+## [2.6.1] - 2026-03-14
+
+### Changed
+
+- **Playlist File Comments**: `playlist add` and `playlist addnext` now ignore comment lines in input files
+  - Lines starting with `#` (including after leading whitespace) are skipped
+  - Blank lines continue to be ignored
+  - Useful for annotated playlist files under `./playlists`
+
+## [2.6.0] - 2026-02-13
+
+### Added
+
+- **Dropsugar URL Support**: `playlist add` and `playlist addnext` now automatically convert dropsugar.co/io view URLs to manifest URLs
+  - Accepts URLs in either view format (`https://www.dropsugar.co/view?m=Q2PRZmXxm`) or manifest format
+  - Automatically converts view URLs to CyTube-compatible manifest URLs
+  - Works with both dropsugar.co and dropsugar.io domains
+
+- **Batch Playlist Operations**: `playlist add` and `playlist addnext` now accept text files containing multiple URLs
+  - Provide a file path with one URL per line
+  - `playlist add` adds videos in file order to the end of the playlist
+  - `playlist addnext` inserts videos in correct order (automatically reverses list for proper playback sequence)
+  - Displays progress for each video added
+
+### Changed
+
+- **Version Management**: Consolidated version definition to pyproject.toml as single source of truth
+  - setup.py now reads version dynamically from pyproject.toml
+  - Ensures version consistency across the project
+
+## [2.5.0] - 2025-12-15
+
+### Added
+
+- **System Services Command**: `kryten system services` shows registered microservices
+  - Lists all services with version, hostname, and heartbeat status
+  - Shows health and metrics endpoint URLs for each service
+  - Indicates active vs stale services (stale = no heartbeat in 90+ seconds)
+  - Supports `--format json` for machine-readable output
+
+### Changed
+
+- **Updated kryten-py dependency** to >=0.9.8 (includes `get_services()` method)
+
+## [2.3.3] - 2025-12-14
+
+### Changed
+
+- **Userstats Display Improvements**: Streamlined `userstats all` command output
+  - Removed redundant "Message Leaderboard" section (duplicated by "Top Active Users")
+  - Increased "Top Active Users" list from 10 to 20 users (default)
+  - Increased "Recent Media" history from 10 to 15 items (default)
+  - Kept Kudos and Emote leaderboards at 10 entries each
+
+## [2.3.2] - 2025-12-13
+
+### Changed
+
+- **Build system**: Migrated from setuptools to Poetry for consistent build/publish workflow
+- Now uses `poetry build` and `poetry publish` like other kryten packages
+
+## [2.3.1] - 2025-12-13
+
+### Changed
+
+- **Sync release**: Version sync with kryten ecosystem
+- **Updated kryten-py dependency** to >=0.9.4 (includes aiohttp as required dependency)
+
 ## [2.3.0] - 2025-12-09
 
 ### Added

@@ -20,6 +20,7 @@ kryten pm UserName "Private message"
 # Playlist
 kryten playlist add https://youtube.com/watch?v=xyz
 kryten playlist addnext yt:abc123
+kryten playlist add .\\playlists\\list.txt
 kryten playlist del video-uid-5
 kryten playlist clear
 
@@ -41,8 +42,8 @@ kryten voteskip
 - `pm <user> <message>` - Send private message
 
 ### Playlist
-- `playlist add <url>` - Add to end
-- `playlist addnext <url>` - Add next
+- `playlist add <url|file>` - Add to end (file supports one URL per line)
+- `playlist addnext <url|file>` - Add next (file supports one URL per line)
 - `playlist add --temp <url>` - Add temporary
 - `playlist del <uid>` - Delete video
 - `playlist move <uid> after <uid>` - Move video
@@ -50,6 +51,8 @@ kryten voteskip
 - `playlist clear` - Clear all
 - `playlist shuffle` - Shuffle
 - `playlist settemp <uid> true|false` - Set temp status
+
+Playlist file note: blank lines are ignored, and lines starting with `#` are treated as comments.
 
 ### Playback
 - `pause` - Pause playback
