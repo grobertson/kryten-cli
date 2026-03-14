@@ -117,6 +117,12 @@ Add video to play next:
 kryten --channel lounge playlist addnext https://youtube.com/watch?v=abc
 ```
 
+Add videos from a playlist file (one URL per line, lines starting with `#` are ignored):
+```bash
+kryten --channel lounge playlist add .\\playlists\\list.txt
+kryten --channel lounge playlist addnext .\\playlists\\friday20.txt
+```
+
 Add as temporary (auto-deleted after playing):
 ```bash
 kryten --channel lounge playlist add --temp https://youtube.com/watch?v=xyz
@@ -195,8 +201,8 @@ kryten voteskip
 |---------|-------------|
 | `say <message>` | Send a chat message |
 | `pm <user> <message>` | Send a private message |
-| `playlist add <url>` | Add video to end of playlist |
-| `playlist addnext <url>` | Add video to play next |
+| `playlist add <url\|file>` | Add video(s) to end of playlist |
+| `playlist addnext <url\|file>` | Add video(s) to play next |
 | `playlist del <uid>` | Delete video from playlist |
 | `playlist move <uid> after <uid>` | Move video in playlist |
 | `playlist jump <uid>` | Jump to specific video |
