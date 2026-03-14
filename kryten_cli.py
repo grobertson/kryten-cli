@@ -259,12 +259,14 @@ class KrytenCLI:
         if os.path.exists(url_or_file) and os.path.isfile(url_or_file):
             urls = self._read_playlist_urls_from_file(url_or_file)
             print(f"✓ Adding {len(urls)} video(s) from file to end of playlist in {self.channel}")
-            for url in urls:
+            for i, url in enumerate(urls):
                 media_type, media_id = self._parse_media_url(url)
                 await self.client.add_media(
                     self.channel, media_type, media_id, position="end", domain=self.domain
                 )
                 print(f"  ✓ Added {media_type}:{media_id}")
+                if i < len(urls) - 1:
+                    await asyncio.sleep(1)
         else:
             media_type, media_id = self._parse_media_url(url_or_file)
             await self.client.add_media(
@@ -284,12 +286,14 @@ class KrytenCLI:
             urls = self._read_playlist_urls_from_file(url_or_file)
             urls.reverse()
             print(f"✓ Adding {len(urls)} video(s) from file to play next in {self.channel}")
-            for url in urls:
+            for i, url in enumerate(urls):
                 media_type, media_id = self._parse_media_url(url)
                 await self.client.add_media(
                     self.channel, media_type, media_id, position="next", domain=self.domain
                 )
                 print(f"  ✓ Added {media_type}:{media_id}")
+                if i < len(urls) - 1:
+                    await asyncio.sleep(1)
         else:
             media_type, media_id = self._parse_media_url(url_or_file)
             await self.client.add_media(

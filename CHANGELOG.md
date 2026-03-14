@@ -5,6 +5,19 @@ All notable changes to kryten-cli will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.2] - 2026-03-14
+
+### Changed
+
+- **Playlist Batch Pacing**: Restored a 1-second delay between file-based media adds
+  - Applies to `playlist add <file>` and `playlist addnext <file>`
+  - Helps prevent command bursts from overwhelming downstream services
+
+- **Packaging Metadata Alignment**: Restored the richer 2.6.x package metadata layout in `pyproject.toml`
+  - Uses Hatchling build backend
+  - Restores `kryten-py>=0.9.8` dependency floor
+  - Restores Ruff/Mypy tool configuration and dev dependency group
+
 ## [2.6.1] - 2026-03-14
 
 ### Changed
